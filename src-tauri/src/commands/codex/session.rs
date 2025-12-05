@@ -799,7 +799,8 @@ async fn execute_codex_process(
         let mut reader = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
             if !line.trim().is_empty() {
-                log::debug!("Codex output: {}", line);
+                // Use trace level to avoid flooding logs in debug mode
+                log::trace!("Codex output: {}", line);
                 // Emit to session-specific channel first (for multi-tab isolation)
                 if let Err(e) = app_handle_stdout.emit(&format!("codex-output:{}", session_id_stdout), &line) {
                     log::error!("Failed to emit codex-output (session-specific): {}", e);

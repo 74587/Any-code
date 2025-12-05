@@ -382,7 +382,8 @@ async fn execute_gemini_process(
                 continue;
             }
 
-            log::debug!("Gemini output: {}", line);
+            // Use trace level to avoid flooding logs in debug mode
+            log::trace!("Gemini output: {}", line);
 
             // Try to parse and convert to unified format
             let unified_message = if let Ok(mut event) = parse_gemini_line(&line) {

@@ -667,7 +667,8 @@ async fn spawn_claude_process(app: AppHandle, mut cmd: Command, prompt: String, 
     let stdout_task = tokio::spawn(async move {
         let mut lines = stdout_reader.lines();
         while let Ok(Some(line)) = lines.next_line().await {
-            log::debug!("Claude stdout: {}", line);
+            // Use trace level to avoid flooding logs in debug mode
+            log::trace!("Claude stdout: {}", line);
             
             // Parse the line to check for init message with session ID
             if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) {
