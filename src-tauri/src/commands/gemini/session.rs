@@ -374,6 +374,8 @@ async fn execute_gemini_process(
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         let mut real_cli_session_id_emitted = false;
+        // Track tool calls to enrich tool_result payloads (e.g., read_file returning empty output)
+        let mut tool_calls: std::collections::HashMap<String, (String, serde_json::Value)> = std::collections::HashMap::new();
 
         while let Ok(Some(line)) = reader.next_line().await {
             if line.trim().is_empty() {
@@ -383,7 +385,7 @@ async fn execute_gemini_process(
             log::debug!("Gemini output: {}", line);
 
             // Try to parse and convert to unified format
-            let unified_message = if let Ok(event) = parse_gemini_line(&line) {
+            let unified_message = if let Ok(mut event) = parse_gemini_line(&line) {
                 // 🔧 FIX: Check if this is an init event with real Gemini CLI session ID
                 if !real_cli_session_id_emitted {
                     if let super::types::GeminiStreamEvent::Init { session_id: Some(ref cli_session_id), .. } = event {
@@ -399,6 +401,61 @@ async fn execute_gemini_process(
                         real_cli_session_id_emitted = true;
                     }
                 }
+
+                // Record tool_use params for later enrichment of tool_result
+                if let super::types::GeminiStreamEvent::ToolUse { tool_name, tool_id, parameters, .. } = &event {
+                    tool_calls.insert(tool_id.clone(), (tool_name.clone(), parameters.clone()));
+                }
+
+                // Enrich tool_result with inline file content if CLI returned empty output
+                if let super::types::GeminiStreamEvent::ToolResult { tool_id, output, status: _status, .. } = &mut event {
+                    if let Some((tool_name, params)) = tool_calls.get(tool_id).cloned() {
+                        let is_read_tool = {
+                            let name_lower = tool_name.to_lowercase();
+                            name_lower == "read" || name_lower == "read_file"
+                        };
+
+                        let output_empty = output.is_null() || output.as_str().map(|s| s.is_empty()).unwrap_or(false);
+
+                        if is_read_tool && output_empty {
+                            let file_path = params
+                                .get("file_path")
+                                .and_then(|v| v.as_str())
+                                .or_else(|| params.get("path").and_then(|v| v.as_str()));
+
+                            if let Some(path) = file_path {
+                                match tokio::fs::read_to_string(path).await {
+                                    Ok(content) => {
+                                        // Wrap as functionResponse to align with frontend parser
+                                        *output = serde_json::json!([{
+                                            "functionResponse": {
+                                                "id": tool_id,
+                                                "name": tool_name,
+                                                "response": { "output": content }
+                                            }
+                                        }]);
+                                        log::info!("[Gemini] Filled empty tool_result output for {} from path {}", tool_id, path);
+                                    }
+                                    Err(err) => {
+                                        log::warn!("[Gemini] Failed to read file for tool_result {}: {}", tool_id, err);
+                                        // Keep original empty output; frontend will handle gracefully
+                                    }
+                                }
+                            } else {
+                                log::warn!("[Gemini] No file_path found for tool_result {}", tool_id);
+                            }
+                        }
+
+                        // Optionally add status-based log for visibility
+                        if output_empty && !is_read_tool {
+                            log::debug!("[Gemini] tool_result {} had empty output (tool: {})", tool_id, tool_name);
+                        }
+                    } else {
+                        // No prior tool_use recorded; keep original
+                        log::debug!("[Gemini] tool_result {} without prior tool_use record", tool_id);
+                    }
+                }
+
                 convert_to_unified_message(&event)
             } else if let Ok(raw) = parse_gemini_line_flexible(&line) {
                 // 🔧 FIX: Also check raw JSON for init event with session_id
