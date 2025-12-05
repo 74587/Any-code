@@ -40,6 +40,13 @@
     "shell:allow-open",
     "fs:allow-write-text-file",
     "fs:allow-read-text-file",
+    "fs:allow-exists",
+    "fs:allow-metadata",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-remove",
+    "fs:allow-write",
+    "fs:allow-read",
     "process:allow-restart",
     "process:allow-exit",
     {
