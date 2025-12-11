@@ -235,6 +235,12 @@ export default function CodexProviderManager({ onBack }: CodexProviderManagerPro
 
   // 判断是否为内置预设（不能删除）
   const isBuiltInPreset = (config: CodexProviderConfig): boolean => {
+    // 如果配置有 createdAt 字段（即使值为 null），说明是用户自定义的配置
+    // 内置预设从代码中加载，不会有 createdAt 字段
+    if ('createdAt' in config) {
+      return false;
+    }
+    // 检查 ID 是否在内置预设列表中
     return codexProviderPresets.some(p => p.id === config.id);
   };
 

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { HooksConfiguration } from '@/types/hooks';
 import { HooksManager } from '@/lib/hooksManager';
+import { codexProviderPresets } from '@/config/codexProviderPresets';
 
 /** Process type for tracking in ProcessRegistry */
 export type ProcessType = 
@@ -3124,12 +3125,32 @@ export const api = {
    * @returns Promise resolving to success message
    */
   async addCodexProviderConfig(config: Omit<CodexProviderConfig, 'id'>): Promise<string> {
-    // Generate ID from name
-    const id = config.name
+    // Generate base ID from name
+    let baseId = config.name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
+
+    // Check if ID conflicts with built-in presets
+    const builtInIds = codexProviderPresets.map(p => p.id);
+
+    // Get existing custom configurations to check for conflicts
+    let existingConfigs: CodexProviderConfig[] = [];
+    try {
+      existingConfigs = await this.getCodexProviderPresets();
+    } catch (error) {
+      console.warn("Failed to load existing Codex configs:", error);
+    }
+    const existingIds = existingConfigs.map(c => c.id);
+
+    // Generate unique ID by adding suffix if needed
+    let id = baseId;
+    let suffix = 1;
+    while (builtInIds.includes(id) || existingIds.includes(id)) {
+      id = `${baseId}-${suffix}`;
+      suffix++;
+    }
 
     const fullConfig: CodexProviderConfig = {
       ...config,
