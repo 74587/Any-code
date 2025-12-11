@@ -11,12 +11,16 @@ import {
   ChevronUp,
   Copy,
   Plus,
+  Edit,
+  Power,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { api, type MCPServerSpec } from "@/lib/api";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { MCPServerDialog } from "./MCPServerDialog";
 
 interface MCPEnginePanelProps {
   /**
@@ -40,6 +44,7 @@ interface MCPEnginePanelProps {
 interface MCPServerItem {
   id: string;
   spec: MCPServerSpec;
+  enabled: boolean; // 启用状态（在配置文件中存在即为 enabled=true）
 }
 
 /**
@@ -57,6 +62,11 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
   const [removingServer, setRemovingServer] = useState<string | null>(null);
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
   const [copiedServer, setCopiedServer] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingServer, setEditingServer] = useState<{
+    id: string;
+    spec: MCPServerSpec;
+  } | null>(null);
 
   // 加载该引擎的服务器列表
   useEffect(() => {
@@ -68,9 +78,9 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
       setLoading(true);
       const serversMap = await api.mcpGetEngineServers(engine);
 
-      // 转换为数组格式
+      // 转换为数组格式，配置文件中存在即为 enabled=true
       const serversList: MCPServerItem[] = Object.entries(serversMap).map(
-        ([id, spec]) => ({ id, spec })
+        ([id, spec]) => ({ id, spec, enabled: true })
       );
 
       setServers(serversList);
@@ -110,9 +120,56 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
   };
 
   /**
-   * 删除服务器
+   * 切换启用状态
+   */
+  const handleToggleEnabled = async (server: MCPServerItem) => {
+    const newEnabled = !server.enabled;
+
+    try {
+      await api.mcpToggleEngineServer(engine, server.id, server.spec, newEnabled);
+
+      // 更新本地状态
+      setServers((prev) =>
+        prev.map((s) =>
+          s.id === server.id ? { ...s, enabled: newEnabled } : s
+        )
+      );
+    } catch (error) {
+      console.error(`Failed to toggle ${engine} MCP server:`, error);
+    }
+  };
+
+  /**
+   * 打开添加对话框
+   */
+  const handleAdd = () => {
+    setEditingServer(null);
+    setDialogOpen(true);
+  };
+
+  /**
+   * 打开编辑对话框
+   */
+  const handleEdit = (server: MCPServerItem) => {
+    setEditingServer({ id: server.id, spec: server.spec });
+    setDialogOpen(true);
+  };
+
+  /**
+   * 对话框保存后的回调
+   */
+  const handleDialogSaved = () => {
+    loadServers(); // 刷新列表
+  };
+
+  /**
+   * 删除服务器（永久删除）
    */
   const handleRemoveServer = async (id: string) => {
+    if (!confirm(`确定要删除 MCP 服务器 "${id}" 吗？`)) {
+      return;
+    }
+
     try {
       setRemovingServer(id);
       await api.mcpDeleteEngineServer(engine, id);
@@ -159,7 +216,7 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
         exit={{ opacity: 0, x: -20 }}
         className="group p-4 rounded-lg border border-border bg-card hover:bg-accent/5 hover:border-primary/20 transition-all"
       >
-        {/* 主行：服务器信息 + 操作按钮 */}
+        {/* 主行：服务器信息 + 启用开关 + 操作按钮 */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -170,6 +227,16 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
               <Badge variant="outline" className="text-xs">
                 {transport}
               </Badge>
+              {server.enabled ? (
+                <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                  <Power className="h-3 w-3 mr-1" />
+                  已启用
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs text-gray-500 border-gray-500">
+                  已禁用
+                </Badge>
+              )}
             </div>
             {command && !isExpanded && (
               <p className="text-xs text-muted-foreground font-mono truncate pl-9">
@@ -183,34 +250,62 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
             )}
           </div>
 
-          {/* 操作按钮 */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleExpanded(server.id)}
-              className="h-8 px-2 hover:bg-primary/10"
-            >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleRemoveServer(server.id)}
-              disabled={removingServer === server.id}
-              className="hover:bg-destructive/10 hover:text-destructive"
-              title="删除"
-            >
-              {removingServer === server.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
+          {/* 右侧：启用开关 + 操作按钮 */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {/* 启用/禁用开关 */}
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor={`${server.id}-enabled`}
+                className="text-sm text-muted-foreground cursor-pointer"
+              >
+                启用
+              </label>
+              <Switch
+                id={`${server.id}-enabled`}
+                checked={server.enabled}
+                onCheckedChange={() => handleToggleEnabled(server)}
+              />
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEdit(server)}
+                className="h-8 px-2 hover:bg-blue-50 dark:hover:bg-blue-950 hover:text-blue-600"
+                title="编辑配置"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleExpanded(server.id)}
+                className="h-8 px-2 hover:bg-primary/10"
+                title={isExpanded ? "收起" : "展开"}
+              >
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleRemoveServer(server.id)}
+                disabled={removingServer === server.id}
+                className="hover:bg-destructive/10 hover:text-destructive"
+                title="删除"
+              >
+                {removingServer === server.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -301,19 +396,30 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
           <div>
             <h3 className="text-base font-semibold">{engineLabel}</h3>
             <p className="text-xs text-muted-foreground">
-              {servers.length} 个工具已启用
+              {servers.filter(s => s.enabled).length} / {servers.length} 个工具已启用
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadServers}
-          className="gap-2 hover:bg-primary/10"
-        >
-          <RefreshCw className="h-4 w-4" />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAdd}
+            className="gap-2 hover:bg-green-50 dark:hover:bg-green-950 hover:text-green-600"
+          >
+            <Plus className="h-4 w-4" />
+            添加工具
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadServers}
+            className="gap-2 hover:bg-primary/10"
+          >
+            <RefreshCw className="h-4 w-4" />
+            刷新
+          </Button>
+        </div>
       </div>
 
       {/* 服务器列表 */}
@@ -343,6 +449,16 @@ export const MCPEnginePanel: React.FC<MCPEnginePanelProps> = ({
           </AnimatePresence>
         </div>
       )}
+
+      {/* 添加/编辑对话框 */}
+      <MCPServerDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        engine={engine}
+        serverId={editingServer?.id}
+        serverSpec={editingServer?.spec}
+        onSaved={handleDialogSaved}
+      />
     </Card>
   );
 };

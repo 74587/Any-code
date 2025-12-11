@@ -1478,6 +1478,33 @@ export const api = {
   },
 
   /**
+   * 切换指定引擎中 MCP 服务器的启用状态
+   *
+   * @param engine 引擎名称（"claude" | "codex" | "gemini"）
+   * @param id 服务器 ID
+   * @param serverSpec 服务器规范
+   * @param enabled 启用状态
+   */
+  async mcpToggleEngineServer(
+    engine: "claude" | "codex" | "gemini",
+    id: string,
+    serverSpec: MCPServerSpec,
+    enabled: boolean
+  ): Promise<string> {
+    try {
+      return await invoke<string>("mcp_toggle_engine_server", {
+        engine,
+        id,
+        serverSpec,
+        enabled,
+      });
+    } catch (error) {
+      console.error(`Failed to toggle ${engine} MCP server:`, error);
+      throw error;
+    }
+  },
+
+  /**
    * 添加或更新 MCP 服务器（支持多应用）
    */
   async mcpUpsertServer(

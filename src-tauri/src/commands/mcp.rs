@@ -991,3 +991,46 @@ pub async fn mcp_delete_engine_server(engine: String, id: String) -> Result<Stri
         engine, id
     ))
 }
+
+/// 切换指定引擎中 MCP 服务器的启用状态
+///
+/// # 参数
+/// - `engine`: 引擎名称（"claude" | "codex" | "gemini"）
+/// - `id`: 服务器 ID
+/// - `server_spec`: 服务器规范（JSON）
+/// - `enabled`: 启用状态
+///
+/// # 说明
+/// - 当 enabled=true 时，将服务器添加到引擎配置文件
+/// - 当 enabled=false 时，从引擎配置文件中移除服务器
+#[tauri::command]
+pub async fn mcp_toggle_engine_server(
+    engine: String,
+    id: String,
+    server_spec: serde_json::Value,
+    enabled: bool,
+) -> Result<String, String> {
+    info!(
+        "切换 {} 引擎中 MCP 服务器 '{}' 的状态: {}",
+        engine, id, enabled
+    );
+
+    let app_type = crate::mcp::AppType::from_str(&engine)?;
+
+    if enabled {
+        // 启用：添加到配置文件
+        crate::mcp::validate_server_spec(&server_spec)?;
+        crate::mcp::sync_server_to_app(&id, &server_spec, &app_type)?;
+        Ok(format!(
+            "已在 {} 引擎中启用 MCP 服务器 '{}'",
+            engine, id
+        ))
+    } else {
+        // 禁用：从配置文件中移除
+        crate::mcp::remove_server_from_app(&id, &app_type)?;
+        Ok(format!(
+            "已在 {} 引擎中禁用 MCP 服务器 '{}'",
+            engine, id
+        ))
+    }
+}
