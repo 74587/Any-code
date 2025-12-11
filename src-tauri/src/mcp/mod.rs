@@ -200,10 +200,28 @@ pub fn sync_servers_to_app(
 /// 返回格式：Record<serverId, McpServer>
 /// 其中 McpServer.apps 字段标记了该服务器在哪些应用中启用
 pub fn get_unified_servers() -> Result<HashMap<String, McpServer>, String> {
+    log::info!("开始获取统一的 MCP 服务器视图");
+
     // 读取三个应用的配置
-    let claude_servers = import_from_claude().unwrap_or_default();
-    let codex_servers = import_from_codex().unwrap_or_default();
-    let gemini_servers = import_from_gemini().unwrap_or_default();
+    let claude_servers = import_from_claude().unwrap_or_else(|e| {
+        log::warn!("读取 Claude MCP 配置失败: {}", e);
+        HashMap::new()
+    });
+    let codex_servers = import_from_codex().unwrap_or_else(|e| {
+        log::warn!("读取 Codex MCP 配置失败: {}", e);
+        HashMap::new()
+    });
+    let gemini_servers = import_from_gemini().unwrap_or_else(|e| {
+        log::warn!("读取 Gemini MCP 配置失败: {}", e);
+        HashMap::new()
+    });
+
+    log::info!(
+        "配置读取完成 - Claude: {} 个, Codex: {} 个, Gemini: {} 个",
+        claude_servers.len(),
+        codex_servers.len(),
+        gemini_servers.len()
+    );
 
     // 合并所有服务器
     let mut unified: HashMap<String, McpServer> = HashMap::new();

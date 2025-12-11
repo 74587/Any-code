@@ -32,37 +32,14 @@ pub fn remove_server_from_claude(id: &str) -> Result<(), String> {
 
 /// 从 ~/.claude.json 导入 mcpServers
 pub fn import_from_claude() -> Result<HashMap<String, Value>, String> {
-    let text_opt = crate::claude_mcp::read_mcp_json()?;
-    let Some(text) = text_opt else {
-        return Ok(HashMap::new());
-    };
+    // 直接使用 claude_mcp 模块的读取函数（更可靠）
+    let servers = crate::claude_mcp::read_mcp_servers_map()?;
 
-    let v: Value = serde_json::from_str(&text)
-        .map_err(|e| format!("解析 ~/.claude.json 失败: {}", e))?;
+    log::info!("从 Claude 读取到 {} 个 MCP 服务器", servers.len());
 
-    let Some(map) = v.get("mcpServers").and_then(|x| x.as_object()) else {
-        return Ok(HashMap::new());
-    };
-
-    let mut result = HashMap::new();
-    let mut errors = Vec::new();
-
-    for (id, spec) in map.iter() {
-        // 校验：单项失败不中止，收集错误继续处理
-        if let Err(e) = validate_server_spec(spec) {
-            log::warn!("跳过无效 MCP 服务器 '{}': {}", id, e);
-            errors.push(format!("{}: {}", id, e));
-            continue;
-        }
-
-        result.insert(id.clone(), spec.clone());
-    }
-
-    if !errors.is_empty() {
-        log::warn!("导入完成，但有 {} 项失败: {:?}", errors.len(), errors);
-    }
-
-    Ok(result)
+    // 不进行严格验证，保持原始数据
+    // 验证会在同步时进行
+    Ok(servers)
 }
 
 /// 将多个服务器同步到 Claude

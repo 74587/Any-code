@@ -22,26 +22,13 @@ pub fn remove_server_from_gemini(id: &str) -> Result<(), String> {
 
 /// 从 Gemini 导入 MCP 服务器
 pub fn import_from_gemini() -> Result<HashMap<String, Value>, String> {
+    // 直接使用 gemini_mcp 模块的读取函数
     let servers = crate::gemini_mcp::read_mcp_servers_map()?;
 
-    let mut result = HashMap::new();
-    let mut errors = Vec::new();
+    log::info!("从 Gemini 读取到 {} 个 MCP 服务器", servers.len());
 
-    for (id, spec) in servers.iter() {
-        if let Err(e) = validate_server_spec(spec) {
-            log::warn!("跳过无效 MCP 服务器 '{}': {}", id, e);
-            errors.push(format!("{}: {}", id, e));
-            continue;
-        }
-
-        result.insert(id.clone(), spec.clone());
-    }
-
-    if !errors.is_empty() {
-        log::warn!("导入完成，但有 {} 项失败: {:?}", errors.len(), errors);
-    }
-
-    Ok(result)
+    // 不进行严格验证，保持原始数据
+    Ok(servers)
 }
 
 /// 将多个服务器同步到 Gemini
