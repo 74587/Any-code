@@ -7,6 +7,7 @@ import { THINKING_MODES, MODELS } from "./constants";
 import { useImageHandling } from "./hooks/useImageHandling";
 import { useFileSelection } from "./hooks/useFileSelection";
 import { usePromptEnhancement } from "./hooks/usePromptEnhancement";
+import { usePromptSuggestion } from "./hooks/usePromptSuggestion";
 import { api } from "@/lib/api";
 import { getEnabledProviders } from "@/lib/promptEnhancementService";
 import { inputReducer, initialState } from "./reducer";
@@ -183,6 +184,37 @@ const FloatingPromptInputInner = (
     enableMultiRound: true,
   });
 
+  // 🆕 Prompt Suggestions Hook
+  const [enablePromptSuggestion, _setEnablePromptSuggestion] = useState(() => {
+    try {
+      const stored = localStorage.getItem('enable_prompt_suggestion');
+      return stored !== null ? stored === 'true' : true; // 默认启用
+    } catch {
+      return true;
+    }
+  });
+
+  // Persist prompt suggestion setting
+  useEffect(() => {
+    try {
+      localStorage.setItem('enable_prompt_suggestion', enablePromptSuggestion.toString());
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [enablePromptSuggestion]);
+
+  const {
+    suggestion,
+    isLoading: isSuggestionLoading,
+    acceptSuggestion,
+    dismissSuggestion,
+  } = usePromptSuggestion({
+    messages: messages || [],
+    currentPrompt: state.prompt,
+    enabled: enablePromptSuggestion && !state.isExpanded && !isLoading && !disabled,
+    debounceMs: 600,
+  });
+
   // Persist project context switch
   useEffect(() => {
     try {
@@ -305,12 +337,16 @@ const FloatingPromptInputInner = (
     adjustTextareaHeight(textarea);
   }, [state.prompt, state.isExpanded]);
 
-  // Tab key listener
+  // Tab key listener - 🆕 只在没有建议时切换 thinking mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const activeElement = document.activeElement;
         const isInTextarea = activeElement?.tagName === 'TEXTAREA';
+        // 🆕 在 textarea 中且有建议时，不处理（由组件内部 handleKeyDown 处理）
+        if (isInTextarea && suggestion) {
+          return;
+        }
         if (!isInTextarea && !disabled) {
           e.preventDefault();
           handleToggleThinkingMode();
@@ -319,7 +355,7 @@ const FloatingPromptInputInner = (
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [disabled, handleToggleThinkingMode]);
+  }, [disabled, handleToggleThinkingMode, suggestion]);
 
   // Event handlers
   const handleSend = () => {
@@ -379,6 +415,24 @@ const FloatingPromptInputInner = (
       setFilePickerQuery("");
       return;
     }
+
+    // 🆕 Tab 键接受建议
+    if (e.key === 'Tab' && !e.shiftKey && suggestion && !showFilePicker) {
+      e.preventDefault();
+      const accepted = acceptSuggestion();
+      if (accepted) {
+        dispatch({ type: "SET_PROMPT", payload: accepted });
+      }
+      return;
+    }
+
+    // 🆕 Escape 键取消建议
+    if (e.key === 'Escape' && suggestion && !showFilePicker) {
+      e.preventDefault();
+      dismissSuggestion();
+      return;
+    }
+
     // 🔧 Mac 输入法兼容：组合输入时忽略 Enter 键
     if (e.key === "Enter" && !e.shiftKey && !state.isExpanded && !showFilePicker) {
       // 三重检查：
@@ -390,6 +444,7 @@ const FloatingPromptInputInner = (
 
       if (!isComposing && !e.nativeEvent.isComposing && !inCooldown) {
         e.preventDefault();
+        dismissSuggestion(); // 🆕 发送时清除建议
         handleSend();
       }
     }
@@ -475,6 +530,9 @@ const FloatingPromptInputInner = (
               setIsComposing(false);
               compositionEndTimeRef.current = Date.now(); // 记录时间戳用于冷却期
             }}
+            // 🆕 Prompt Suggestions
+            suggestion={suggestion}
+            isSuggestionLoading={isSuggestionLoading}
           />
 
           <ControlBar

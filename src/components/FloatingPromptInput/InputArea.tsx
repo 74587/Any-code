@@ -6,6 +6,8 @@ import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence } from "framer-motion";
 import { FilePicker } from "../FilePicker";
+import { SuggestionOverlay, SuggestionHint } from "./components/SuggestionOverlay";
+import type { PromptSuggestion } from "./hooks/usePromptSuggestion";
 
 interface InputAreaProps {
   prompt: string;
@@ -27,6 +29,9 @@ interface InputAreaProps {
   // 🔧 Mac 输入法兼容：composition 事件
   onCompositionStart?: () => void;
   onCompositionEnd?: () => void;
+  // 🆕 Prompt Suggestions
+  suggestion?: PromptSuggestion | null;
+  isSuggestionLoading?: boolean;
 }
 
 export const InputArea = forwardRef<HTMLTextAreaElement, InputAreaProps>(({
@@ -48,11 +53,20 @@ export const InputArea = forwardRef<HTMLTextAreaElement, InputAreaProps>(({
   onFilePickerClose,
   onCompositionStart,
   onCompositionEnd,
+  suggestion,
+  isSuggestionLoading,
 }, ref) => {
   const { t } = useTranslation();
-  
+
   return (
     <div className="relative">
+      {/* 🆕 建议叠加层 */}
+      <SuggestionOverlay
+        suggestion={suggestion ?? null}
+        currentPrompt={prompt}
+        isLoading={isSuggestionLoading}
+      />
+
       <Textarea
         ref={ref}
         value={prompt}
@@ -67,7 +81,9 @@ export const InputArea = forwardRef<HTMLTextAreaElement, InputAreaProps>(({
         className={cn(
           "min-h-[56px] max-h-[300px] resize-none pr-10 overflow-y-auto",
           "bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20",
-          dragActive && "border-primary ring-2 ring-primary/20"
+          dragActive && "border-primary ring-2 ring-primary/20",
+          // 🆕 建议存在时文字颜色正常，让叠加层可见
+          suggestion && "caret-primary"
         )}
         rows={1}
         style={{ height: 'auto' }}
@@ -76,6 +92,9 @@ export const InputArea = forwardRef<HTMLTextAreaElement, InputAreaProps>(({
         onDragOver={onDragOver}
         onDrop={onDrop}
       />
+
+      {/* 🆕 Tab 提示 */}
+      <SuggestionHint visible={!!suggestion && !isSuggestionLoading} />
 
       <Button
         variant="ghost"
