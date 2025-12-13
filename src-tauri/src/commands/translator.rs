@@ -244,7 +244,13 @@ impl TranslationService {
             "stream": false
         });
 
-        debug!("Sending translation request for text: {}", text);
+        // Avoid logging potentially sensitive content (source code, secrets, etc.)
+        debug!(
+            "Sending translation request: from={} to={}, input_len={}",
+            from_lang,
+            to_lang,
+            text.chars().count()
+        );
 
         // 智能规范化 API URL（支持用户输入简化的基础 URL）
         let api_url = normalize_api_url(&self.config.api_base_url, ApiEndpointType::OpenAI);
@@ -289,7 +295,13 @@ impl TranslationService {
             .trim()
             .to_string();
 
-        debug!("Translation successful: {} -> {}", text, translated_text);
+        debug!(
+            "Translation successful: from={} to={}, input_len={}, output_len={}",
+            from_lang,
+            to_lang,
+            text.chars().count(),
+            translated_text.chars().count()
+        );
 
         Ok(translated_text)
     }

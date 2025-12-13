@@ -148,7 +148,21 @@ pub async fn execute_codex(
     options: CodexExecutionOptions,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    log::info!("execute_codex called with options: {:?}", options);
+    // Avoid logging sensitive fields (prompt/api_key). Log only non-sensitive metadata.
+    log::info!(
+        "execute_codex called: project_path={}, mode={:?}, model={:?}, json={}, output_schema_present={}, output_file_present={}, skip_git_repo_check={}, session_id_present={}, resume_last={}, api_key_present={}, prompt_len={}",
+        options.project_path,
+        options.mode,
+        options.model,
+        options.json,
+        options.output_schema.is_some(),
+        options.output_file.is_some(),
+        options.skip_git_repo_check,
+        options.session_id.is_some(),
+        options.resume_last,
+        options.api_key.is_some(),
+        options.prompt.len()
+    );
 
     // Build codex exec command
     let (cmd, prompt) = build_codex_command(&options, false, None)?;

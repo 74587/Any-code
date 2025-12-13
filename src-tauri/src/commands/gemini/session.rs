@@ -286,7 +286,21 @@ pub async fn execute_gemini(
     options: GeminiExecutionOptions,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    log::info!("execute_gemini called with options: {:?}", options);
+    // Avoid logging sensitive fields (prompt). Log only non-sensitive metadata.
+    log::info!(
+        "execute_gemini called: project_path={}, model={:?}, approval_mode={:?}, include_directories_count={}, session_id_present={}, debug={}, prompt_len={}",
+        options.project_path,
+        options.model,
+        options.approval_mode,
+        options
+            .include_directories
+            .as_ref()
+            .map(|dirs| dirs.len())
+            .unwrap_or(0),
+        options.session_id.is_some(),
+        options.debug,
+        options.prompt.len()
+    );
 
     // Find Gemini binary
     let gemini_path = find_gemini_binary()?;
