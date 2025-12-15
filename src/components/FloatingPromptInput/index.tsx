@@ -454,16 +454,19 @@ const FloatingPromptInputInner = (
       return;
     }
 
-    // 🔧 Mac 输入法兼容：组合输入时忽略 Enter 键
+    // 🔧 输入法兼容：组合输入时忽略 Enter 键
+    // 支持：Mac 中文输入法、Windows 注音/倉頡/拼音、Linux IBus/Fcitx 等
     if (e.key === "Enter" && !e.shiftKey && !state.isExpanded && !showFilePicker) {
-      // 三重检查：
-      // 1. isComposing 状态
-      // 2. 原生事件属性
-      // 3. compositionend 后的冷却期（Mac 原生输入法需要）
+      // 多重检查确保不在 IME 组合输入中：
+      // 1. React 状态追踪的 isComposing
+      // 2. 原生事件的 isComposing 属性
+      // 3. keyCode === 229 是 IME 处理中的标准信号（兼容各种输入法）
+      // 4. compositionend 后的冷却期（某些输入法需要较长时间）
       const timeSinceCompositionEnd = Date.now() - compositionEndTimeRef.current;
-      const inCooldown = timeSinceCompositionEnd < 100; // 100ms 冷却期
+      const inCooldown = timeSinceCompositionEnd < 200; // 200ms 冷却期（增加以兼容更多输入法）
+      const isIMEProcessing = e.nativeEvent.keyCode === 229 || (e.nativeEvent as any).which === 229;
 
-      if (!isComposing && !e.nativeEvent.isComposing && !inCooldown) {
+      if (!isComposing && !e.nativeEvent.isComposing && !isIMEProcessing && !inCooldown) {
         e.preventDefault();
         dismissSuggestion(); // 🆕 发送时清除建议
         handleSend();
