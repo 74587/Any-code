@@ -5,7 +5,7 @@
  * with appropriate configuration options for each.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Settings, Zap, Check, Monitor, Terminal, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,47 +81,25 @@ export const ExecutionEngineSelector: React.FC<ExecutionEngineSelectorProps> = (
   className = '',
 }) => {
   const [showSettings, setShowSettings] = useState(false);
-  const [codexModeConfig, setCodexModeConfig] = useState<CodexModeConfig | null>(null);
-  const [geminiWslModeConfig, setGeminiWslModeConfig] = useState<GeminiWslModeConfig | null>(null);
   const [savingConfig, setSavingConfig] = useState(false);
 
-  // 使用全局缓存的引擎状态
+  // 使用全局缓存的引擎状态（包括模式配置）
   const {
     codexAvailable,
     codexVersion,
     geminiInstalled: geminiAvailable,
     geminiVersion,
+    codexModeConfig: cachedCodexModeConfig,
+    geminiWslModeConfig: cachedGeminiWslModeConfig,
   } = useEngineStatus();
 
-  // Load Codex mode config on mount
-  useEffect(() => {
-    loadCodexModeConfig();
-    loadGeminiWslModeConfig();
-  }, []);
+  // 本地状态用于跟踪用户修改（保存后立即更新 UI）
+  const [localCodexModeConfig, setLocalCodexModeConfig] = useState<CodexModeConfig | null>(null);
+  const [localGeminiWslModeConfig, setLocalGeminiWslModeConfig] = useState<GeminiWslModeConfig | null>(null);
 
-  const loadCodexModeConfig = async () => {
-    try {
-      if (!api || typeof api.getCodexModeConfig !== 'function') {
-        return;
-      }
-      const config = await api.getCodexModeConfig();
-      setCodexModeConfig(config);
-    } catch (error) {
-      console.error('[ExecutionEngineSelector] Failed to load Codex mode config:', error);
-    }
-  };
-
-  const loadGeminiWslModeConfig = async () => {
-    try {
-      if (!api || typeof api.getGeminiWslModeConfig !== 'function') {
-        return;
-      }
-      const config = await api.getGeminiWslModeConfig();
-      setGeminiWslModeConfig(config);
-    } catch (error) {
-      console.error('[ExecutionEngineSelector] Failed to load Gemini WSL mode config:', error);
-    }
-  };
+  // 使用本地修改的值，如果没有则使用缓存的值
+  const codexModeConfig: CodexModeConfig | null = localCodexModeConfig || cachedCodexModeConfig || null;
+  const geminiWslModeConfig: GeminiWslModeConfig | null = localGeminiWslModeConfig || cachedGeminiWslModeConfig || null;
 
   const handleCodexRuntimeModeChange = async (mode: CodexRuntimeMode) => {
     if (!codexModeConfig) return;
@@ -129,7 +107,7 @@ export const ExecutionEngineSelector: React.FC<ExecutionEngineSelectorProps> = (
     setSavingConfig(true);
     try {
       await api.setCodexModeConfig(mode, codexModeConfig.wslDistro);
-      setCodexModeConfig({ ...codexModeConfig, mode });
+      setLocalCodexModeConfig({ ...codexModeConfig, mode });
       // 使用 Tauri 原生对话框询问用户是否重启
       const shouldRestart = await ask('配置已保存。是否立即重启应用以使更改生效？', {
         title: '重启应用',
@@ -166,7 +144,7 @@ export const ExecutionEngineSelector: React.FC<ExecutionEngineSelectorProps> = (
     setSavingConfig(true);
     try {
       await api.setCodexModeConfig(codexModeConfig.mode, newDistro);
-      setCodexModeConfig({ ...codexModeConfig, wslDistro: newDistro });
+      setLocalCodexModeConfig({ ...codexModeConfig, wslDistro: newDistro });
       // 使用 Tauri 原生对话框询问用户是否重启
       const shouldRestart = await ask('配置已保存。是否立即重启应用以使更改生效？', {
         title: '重启应用',
@@ -202,7 +180,7 @@ export const ExecutionEngineSelector: React.FC<ExecutionEngineSelectorProps> = (
     setSavingConfig(true);
     try {
       await api.setGeminiWslModeConfig(mode, geminiWslModeConfig.wslDistro);
-      setGeminiWslModeConfig({ ...geminiWslModeConfig, mode });
+      setLocalGeminiWslModeConfig({ ...geminiWslModeConfig, mode });
       // 使用 Tauri 原生对话框询问用户是否重启
       const shouldRestart = await ask('配置已保存。是否立即重启应用以使更改生效？', {
         title: '重启应用',
@@ -239,7 +217,7 @@ export const ExecutionEngineSelector: React.FC<ExecutionEngineSelectorProps> = (
     setSavingConfig(true);
     try {
       await api.setGeminiWslModeConfig(geminiWslModeConfig.mode, newDistro);
-      setGeminiWslModeConfig({ ...geminiWslModeConfig, wslDistro: newDistro });
+      setLocalGeminiWslModeConfig({ ...geminiWslModeConfig, wslDistro: newDistro });
       // 使用 Tauri 原生对话框询问用户是否重启
       const shouldRestart = await ask('配置已保存。是否立即重启应用以使更改生效？', {
         title: '重启应用',

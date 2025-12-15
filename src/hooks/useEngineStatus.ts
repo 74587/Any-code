@@ -2,10 +2,32 @@
  * 全局引擎状态缓存 Hook
  *
  * 避免多个组件重复检测引擎安装状态，使用全局缓存确保只检测一次
+ * 包含模式配置，避免进入历史会话页面时重复触发 WSL 检测
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
+
+// 模式配置类型
+export interface CodexModeConfig {
+  mode: 'auto' | 'native' | 'wsl';
+  wslDistro: string | null;
+  actualMode: 'native' | 'wsl';
+  nativeAvailable: boolean;
+  wslAvailable: boolean;
+  availableDistros: string[];
+}
+
+export interface GeminiWslModeConfig {
+  mode: 'auto' | 'native' | 'wsl';
+  wslDistro: string | null;
+  wslAvailable: boolean;
+  availableDistros: string[];
+  wslEnabled: boolean;
+  wslGeminiPath: string | null;
+  wslGeminiVersion: string | null;
+  nativeAvailable: boolean;
+}
 
 export interface EngineStatusInfo {
   claude: {
@@ -15,10 +37,12 @@ export interface EngineStatusInfo {
   codex: {
     available: boolean;
     version?: string;
+    modeConfig?: CodexModeConfig;
   };
   gemini: {
     installed: boolean;
     version?: string;
+    wslModeConfig?: GeminiWslModeConfig;
   };
 }
 
@@ -46,11 +70,19 @@ const loadEngineStatus = async (): Promise<EngineStatusInfo> => {
 
   loadPromise = (async () => {
     try {
-      // 并行检测所有引擎
-      const [claudeResult, codexResult, geminiResult] = await Promise.allSettled([
+      // 并行检测所有引擎和模式配置
+      const [
+        claudeResult,
+        codexResult,
+        geminiResult,
+        codexModeResult,
+        geminiWslModeResult,
+      ] = await Promise.allSettled([
         api.checkClaudeVersion(),
         api.checkCodexAvailability(),
         api.checkGeminiInstalled(),
+        api.getCodexModeConfig?.() ?? Promise.resolve(null),
+        api.getGeminiWslModeConfig?.() ?? Promise.resolve(null),
       ]);
 
       const status: EngineStatusInfo = {
@@ -61,10 +93,12 @@ const loadEngineStatus = async (): Promise<EngineStatusInfo> => {
         codex: {
           available: codexResult.status === 'fulfilled' ? codexResult.value.available : false,
           version: codexResult.status === 'fulfilled' ? codexResult.value.version : undefined,
+          modeConfig: codexModeResult.status === 'fulfilled' ? codexModeResult.value : undefined,
         },
         gemini: {
           installed: geminiResult.status === 'fulfilled' ? geminiResult.value.installed : false,
           version: geminiResult.status === 'fulfilled' ? geminiResult.value.version : undefined,
+          wslModeConfig: geminiWslModeResult.status === 'fulfilled' ? geminiWslModeResult.value : undefined,
         },
       };
 
@@ -138,7 +172,9 @@ export const useEngineStatus = () => {
     claudeVersion: status?.claude.version,
     codexAvailable: status?.codex.available ?? false,
     codexVersion: status?.codex.version,
+    codexModeConfig: status?.codex.modeConfig,
     geminiInstalled: status?.gemini.installed ?? false,
     geminiVersion: status?.gemini.version,
+    geminiWslModeConfig: status?.gemini.wslModeConfig,
   };
 };
