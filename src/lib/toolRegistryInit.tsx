@@ -35,6 +35,7 @@ import {
 
   // 子代理类
   TaskWidget,
+  TaskOutputWidget,
   MultiEditWidget,
   GeminiSubagentWidget,
 
@@ -556,6 +557,19 @@ export function initializeToolRegistry(): void {
         subagentType: props.input?.subagent_type ?? props.result?.content?.subagent_type,
       })),
       description: 'Claude Code 子代理工具',
+    },
+
+    // TaskOutput - 获取后台任务输出（Claude Code 特有）
+    {
+      name: 'taskoutput',
+      pattern: /^task[-_]?output$/i,
+      render: createToolAdapter(TaskOutputWidget, (props) => ({
+        taskId: props.input?.task_id ?? props.input?.taskId,
+        block: props.input?.block,
+        timeout: props.input?.timeout,
+        result: props.result,
+      })),
+      description: 'Claude Code 任务输出获取工具',
     },
 
     // Gemini 子代理工具（codebase_investigator, code_executor 等）
