@@ -35,18 +35,24 @@ export interface UseContextWindowUsageResult extends ContextWindowUsage {
 /**
  * 从消息中提取 current_usage 数据
  * 查找最后一条带有 usage 信息的消息
+ *
+ * 注意：这里的 usage 代表当前 API 调用的上下文使用情况（快照），
+ * 而不是单条消息的增量 token 数。
  */
 function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
   inputTokens: number;
   outputTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
+  sourceIndex: number;
+  sourceType: string;
 } | null {
   // 从后向前遍历，找到最后一条带有 usage 的消息
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i] as any;
 
     // 尝试从不同位置获取 usage 数据
+    // 优先级：message.usage > usage
     const usage = message.message?.usage || message.usage;
 
     if (usage && typeof usage === 'object') {
@@ -55,6 +61,8 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
       const outputTokens = usage.output_tokens || 0;
 
       // 缓存创建 tokens（多种命名方式）
+      // API 格式: cache_creation_input_tokens
+      // 规范化格式: cache_creation_tokens / cache_write_tokens
       const cacheCreationTokens =
         usage.cache_creation_input_tokens ||
         usage.cache_creation_tokens ||
@@ -62,6 +70,8 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
         0;
 
       // 缓存读取 tokens（多种命名方式）
+      // API 格式: cache_read_input_tokens
+      // 规范化格式: cache_read_tokens
       const cacheReadTokens =
         usage.cache_read_input_tokens ||
         usage.cache_read_tokens ||
@@ -69,16 +79,33 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
 
       // 只有当有有效数据时才返回
       if (inputTokens > 0 || cacheCreationTokens > 0 || cacheReadTokens > 0) {
+        // 调试日志
+        console.log('[useContextWindowUsage] Found usage at message index', i, {
+          messageType: message.type,
+          messageSubtype: message.subtype,
+          usageSource: message.message?.usage ? 'message.usage' : 'usage',
+          rawUsage: usage,
+          extracted: {
+            inputTokens,
+            outputTokens,
+            cacheCreationTokens,
+            cacheReadTokens,
+          }
+        });
+
         return {
           inputTokens,
           outputTokens,
           cacheCreationTokens,
           cacheReadTokens,
+          sourceIndex: i,
+          sourceType: message.type,
         };
       }
     }
   }
 
+  console.log('[useContextWindowUsage] No usage data found in', messages.length, 'messages');
   return null;
 }
 
@@ -151,6 +178,19 @@ export function useContextWindowUsage(
     // 格式化显示
     const formattedPercentage = `${percentage.toFixed(1)}%`;
     const formattedTokens = `${formatK(currentTokens)} / ${formatK(contextWindowSize)}`;
+
+    // 调试日志
+    console.log('[useContextWindowUsage] Calculated context window usage:', {
+      currentTokens,
+      contextWindowSize,
+      percentage: percentage.toFixed(2) + '%',
+      level,
+      formula: `${currentUsage.inputTokens} + ${currentUsage.cacheCreationTokens} + ${currentUsage.cacheReadTokens} = ${currentTokens}`,
+      sourceMessage: {
+        index: currentUsage.sourceIndex,
+        type: currentUsage.sourceType,
+      }
+    });
 
     return {
       currentTokens,
