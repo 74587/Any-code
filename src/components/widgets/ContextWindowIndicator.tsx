@@ -22,6 +22,8 @@ export interface ContextWindowIndicatorProps {
   messages: ClaudeStreamMessage[];
   /** 当前使用的模型 */
   model?: string;
+  /** 引擎类型（claude/codex/gemini） */
+  engine?: string;
   /** 是否显示（需要有消息时才显示） */
   show?: boolean;
   /** 自定义类名 */
@@ -32,17 +34,19 @@ export interface ContextWindowIndicatorProps {
  * 上下文窗口使用指示器
  *
  * 显示一个带有进度条和百分比的 Badge，悬停时显示详细信息
+ * 支持多引擎（Claude/Codex）
  */
 export const ContextWindowIndicator: React.FC<ContextWindowIndicatorProps> = ({
   messages,
   model,
+  engine,
   show = true,
   className,
 }) => {
   const { t } = useTranslation();
   const [showPopover, setShowPopover] = React.useState(false);
 
-  const usage = useContextWindowUsage(messages, model);
+  const usage = useContextWindowUsage(messages, model, engine);
   const colors = USAGE_LEVEL_COLORS[usage.level];
 
   // 如果没有数据或不显示，返回 null

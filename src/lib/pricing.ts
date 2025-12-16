@@ -1,8 +1,9 @@
 /**
- * 统一的 Claude 模型定价模块
+ * 统一的 AI 模型定价模块
  * ⚠️ MUST MATCH: src-tauri/src/commands/usage.rs::ModelPricing
  *
- * 根据官方文档：https://platform.claude.com/docs/en/about-claude/pricing
+ * Claude 定价：https://platform.claude.com/docs/en/about-claude/pricing
+ * Codex 定价：https://platform.openai.com/docs/pricing (codex-mini-latest)
  * 价格单位：美元/百万 tokens
  * Last Updated: December 2025
  */
@@ -16,9 +17,13 @@ export interface ModelPricing {
 
 /**
  * 模型定价常量（每百万 tokens）
- * 来源：Anthropic 官方定价
+ * 来源：各厂商官方定价
  */
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // ============================================================================
+  // Claude Models (Anthropic)
+  // ============================================================================
+
   // Claude 4.5 Series (Latest - December 2025)
   'claude-opus-4.5': {
     input: 5.0,
@@ -47,7 +52,59 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     cacheRead: 1.50
   },
 
+  // ============================================================================
+  // Codex Models (OpenAI)
+  // Source: https://platform.openai.com/docs/pricing
+  // Note: Codex 使用 ChatGPT 订阅时按会话限制计费，API Key 用户按 token 计费
+  // ============================================================================
+
+  // Codex Mini (codex-mini-latest) - 最常用的 Codex 模型
+  'codex-mini': {
+    input: 1.50,      // $1.50 / 1M input tokens
+    output: 6.00,     // $6.00 / 1M output tokens
+    cacheWrite: 1.875, // 估算：input * 1.25
+    cacheRead: 0.15   // 估算：input * 0.1
+  },
+  'codex-mini-latest': {
+    input: 1.50,
+    output: 6.00,
+    cacheWrite: 1.875,
+    cacheRead: 0.15
+  },
+
+  // Codex-1 (全功能版本)
+  'codex-1': {
+    input: 2.50,      // 估算定价
+    output: 10.00,
+    cacheWrite: 3.125,
+    cacheRead: 0.25
+  },
+
+  // o4-mini (Codex 底层模型之一)
+  'o4-mini': {
+    input: 1.10,
+    output: 4.40,
+    cacheWrite: 1.375,
+    cacheRead: 0.11
+  },
+
+  // GPT-4.1 系列 (可能被 Codex 使用)
+  'gpt-4.1': {
+    input: 2.00,
+    output: 8.00,
+    cacheWrite: 2.50,
+    cacheRead: 0.20
+  },
+  'gpt-4.1-mini': {
+    input: 0.40,
+    output: 1.60,
+    cacheWrite: 0.50,
+    cacheRead: 0.04
+  },
+
+  // ============================================================================
   // Default fallback (use latest Sonnet 4.5 pricing)
+  // ============================================================================
   'default': {
     input: 3.0,
     output: 15.0,
@@ -61,16 +118,22 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
  * ⚠️ MUST MATCH: Backend logic in usage.rs::parse_model_family
  *
  * @param model - 模型名称或标识符
+ * @param engine - 引擎类型（claude/codex/gemini）
  * @returns 模型定价对象
  */
-export function getPricingForModel(model?: string): ModelPricing {
+export function getPricingForModel(model?: string, engine?: string): ModelPricing {
   if (!model) {
+    // 根据引擎选择默认定价
+    if (engine === 'codex') {
+      return MODEL_PRICING['codex-mini'];
+    }
     return MODEL_PRICING['default'];
   }
 
   // Normalize: lowercase + remove common prefixes/suffixes
   let normalized = model.toLowerCase();
   normalized = normalized.replace('anthropic.', '');
+  normalized = normalized.replace('openai.', '');
   normalized = normalized.replace('-v1:0', '');
 
   // Handle @ symbol for Vertex AI format
@@ -79,7 +142,36 @@ export function getPricingForModel(model?: string): ModelPricing {
     normalized = normalized.substring(0, atIndex);
   }
 
-  // Priority-based matching (order matters! MUST match backend logic)
+  // ============================================================================
+  // Codex Models (OpenAI)
+  // ============================================================================
+
+  // Codex-mini series
+  if (normalized.includes('codex-mini') || normalized.includes('codex_mini')) {
+    return MODEL_PRICING['codex-mini'];
+  }
+
+  // Codex-1 series
+  if (normalized.includes('codex-1') || normalized.includes('codex_1') || normalized === 'codex') {
+    return MODEL_PRICING['codex-1'];
+  }
+
+  // o4-mini (Codex 底层模型)
+  if (normalized.includes('o4-mini') || normalized.includes('o4_mini')) {
+    return MODEL_PRICING['o4-mini'];
+  }
+
+  // GPT-4.1 series
+  if (normalized.includes('gpt-4.1-mini') || normalized.includes('gpt_4_1_mini')) {
+    return MODEL_PRICING['gpt-4.1-mini'];
+  }
+  if (normalized.includes('gpt-4.1') || normalized.includes('gpt_4_1')) {
+    return MODEL_PRICING['gpt-4.1'];
+  }
+
+  // ============================================================================
+  // Claude Models (Anthropic)
+  // ============================================================================
 
   // Claude 4.5 Series (Latest)
   if (normalized.includes('opus') && (normalized.includes('4.5') || normalized.includes('4-5'))) {
@@ -108,6 +200,11 @@ export function getPricingForModel(model?: string): ModelPricing {
     return MODEL_PRICING['claude-sonnet-4.5']; // Default to latest
   }
 
+  // Codex 引擎使用 Codex 默认定价
+  if (engine === 'codex') {
+    return MODEL_PRICING['codex-mini'];
+  }
+
   // Unknown model - use default
   console.warn(`[pricing] Unknown model: '${model}'. Using default pricing.`);
   return MODEL_PRICING['default'];
@@ -117,6 +214,7 @@ export function getPricingForModel(model?: string): ModelPricing {
  * 计算单个消息的成本
  * @param tokens - token 使用统计
  * @param model - 模型名称
+ * @param engine - 引擎类型（claude/codex/gemini）
  * @returns 成本（美元）
  */
 export function calculateMessageCost(
@@ -126,9 +224,10 @@ export function calculateMessageCost(
     cache_creation_tokens: number;
     cache_read_tokens: number;
   },
-  model?: string
+  model?: string,
+  engine?: string
 ): number {
-  const pricing = getPricingForModel(model);
+  const pricing = getPricingForModel(model, engine);
 
   const inputCost = (tokens.input_tokens / 1_000_000) * pricing.input;
   const outputCost = (tokens.output_tokens / 1_000_000) * pricing.output;

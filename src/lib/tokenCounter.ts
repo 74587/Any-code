@@ -79,9 +79,10 @@ export const CLAUDE_PRICING = {
 } as const;
 
 // ============================================================================
-// Claude Model Context Windows
+// AI Model Context Windows
 // 各模型的上下文窗口大小（tokens）
-// Source: https://docs.claude.com/en/docs/about-claude/models/overview
+// Claude: https://docs.claude.com/en/docs/about-claude/models/overview
+// Codex: https://github.com/openai/codex (官方文档)
 // ============================================================================
 
 export const CLAUDE_CONTEXT_WINDOWS = {
@@ -99,12 +100,63 @@ export const CLAUDE_CONTEXT_WINDOWS = {
   'default': 200000,
 } as const;
 
+// ============================================================================
+// Codex Model Context Windows
+// Source: https://github.com/openai/codex 官方文档
+// ============================================================================
+
+export const CODEX_CONTEXT_WINDOWS = {
+  // Codex Mini - 最常用
+  'codex-mini': 200000,
+  'codex-mini-latest': 200000,
+  // Codex-1 系列
+  'codex-1': 192000,
+  'codex': 192000,
+  // o4-mini (Codex 底层模型)
+  'o4-mini': 128000,
+  // GPT-4.1 系列
+  'gpt-4.1': 128000,
+  'gpt-4.1-mini': 128000,
+  // 默认值
+  'default': 200000,
+} as const;
+
 /**
  * 获取模型的上下文窗口大小
  * @param model - 模型名称
+ * @param engine - 引擎类型（claude/codex/gemini）
  * @returns 上下文窗口大小（tokens）
  */
-export function getContextWindowSize(model?: string): number {
+export function getContextWindowSize(model?: string, engine?: string): number {
+  // Codex 引擎
+  if (engine === 'codex') {
+    if (!model) return CODEX_CONTEXT_WINDOWS['default'];
+
+    const lowerModel = model.toLowerCase();
+
+    // 尝试直接匹配
+    if (lowerModel in CODEX_CONTEXT_WINDOWS) {
+      return CODEX_CONTEXT_WINDOWS[lowerModel as keyof typeof CODEX_CONTEXT_WINDOWS];
+    }
+
+    // 尝试部分匹配
+    if (lowerModel.includes('codex-mini') || lowerModel.includes('codex_mini')) {
+      return CODEX_CONTEXT_WINDOWS['codex-mini'];
+    }
+    if (lowerModel.includes('codex-1') || lowerModel.includes('codex_1')) {
+      return CODEX_CONTEXT_WINDOWS['codex-1'];
+    }
+    if (lowerModel.includes('o4-mini') || lowerModel.includes('o4_mini')) {
+      return CODEX_CONTEXT_WINDOWS['o4-mini'];
+    }
+    if (lowerModel.includes('gpt-4.1') || lowerModel.includes('gpt_4_1')) {
+      return CODEX_CONTEXT_WINDOWS['gpt-4.1'];
+    }
+
+    return CODEX_CONTEXT_WINDOWS['default'];
+  }
+
+  // Claude 引擎（默认）
   if (!model) return CLAUDE_CONTEXT_WINDOWS['default'];
 
   // 尝试直接匹配

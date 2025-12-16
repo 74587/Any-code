@@ -1,15 +1,17 @@
 /**
  * 上下文窗口使用情况计算 Hook
  *
- * 参考 Claude Code v2.0.64 的 current_usage 功能
- * 计算当前会话的上下文窗口使用百分比
+ * 支持多引擎（Claude/Codex）的上下文窗口使用计算
  *
- * 重要说明（来自官方文档）：
- * - total_input_tokens / total_output_tokens: 整个会话的累计总量
- * - current_usage: 最后一次 API 调用返回的当前上下文窗口使用情况
- *   - input_tokens: 当前上下文中的输入 tokens
- *   - cache_creation_input_tokens: 写入缓存的 tokens
- *   - cache_read_input_tokens: 从缓存读取的 tokens
+ * Claude Code v2.0.64 的 current_usage 功能：
+ * - input_tokens: 当前上下文中的输入 tokens
+ * - cache_creation_input_tokens: 写入缓存的 tokens
+ * - cache_read_input_tokens: 从缓存读取的 tokens
+ *
+ * Codex 的 usage 功能（从 turn.completed 事件获取）：
+ * - input_tokens: 输入 tokens
+ * - cached_input_tokens: 缓存的输入 tokens
+ * - output_tokens: 输出 tokens
  *
  * 计算公式：
  * CURRENT_TOKENS = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
@@ -36,10 +38,14 @@ export interface UseContextWindowUsageResult extends ContextWindowUsage {
  * 从消息中提取 current_usage 数据
  * 查找最后一条带有 usage 信息的消息
  *
+ * 支持多引擎的 usage 格式：
+ * - Claude: message.usage / message.message.usage
+ * - Codex: turn.completed 事件的 usage（input_tokens, cached_input_tokens, output_tokens）
+ *
  * 注意：这里的 usage 代表当前 API 调用的上下文使用情况（快照），
  * 而不是单条消息的增量 token 数。
  */
-function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
+function extractCurrentUsage(messages: ClaudeStreamMessage[], engine?: string): {
   inputTokens: number;
   outputTokens: number;
   cacheCreationTokens: number;
@@ -50,8 +56,8 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
     const message = messages[i] as any;
 
     // 尝试从不同位置获取 usage 数据
-    // 优先级：message.usage > usage
-    const usage = message.message?.usage || message.usage;
+    // 优先级：message.usage > message.message.usage
+    const usage = message.usage || message.message?.usage;
 
     if (usage && typeof usage === 'object') {
       // 提取各字段，处理不同的命名方式
@@ -59,7 +65,7 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
       const outputTokens = usage.output_tokens || 0;
 
       // 缓存创建 tokens（多种命名方式）
-      // API 格式: cache_creation_input_tokens
+      // Claude API 格式: cache_creation_input_tokens
       // 规范化格式: cache_creation_tokens / cache_write_tokens
       const cacheCreationTokens =
         usage.cache_creation_input_tokens ||
@@ -68,10 +74,12 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
         0;
 
       // 缓存读取 tokens（多种命名方式）
-      // API 格式: cache_read_input_tokens
+      // Claude API 格式: cache_read_input_tokens
+      // Codex API 格式: cached_input_tokens
       // 规范化格式: cache_read_tokens
       const cacheReadTokens =
         usage.cache_read_input_tokens ||
+        usage.cached_input_tokens ||  // Codex 格式
         usage.cache_read_tokens ||
         0;
 
@@ -81,6 +89,23 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
           inputTokens,
           outputTokens,
           cacheCreationTokens,
+          cacheReadTokens,
+        };
+      }
+    }
+
+    // Codex: 检查 codexMetadata 中的 usage
+    if (engine === 'codex' && message.codexMetadata?.usage) {
+      const codexUsage = message.codexMetadata.usage;
+      const inputTokens = codexUsage.input_tokens || 0;
+      const outputTokens = codexUsage.output_tokens || 0;
+      const cacheReadTokens = codexUsage.cached_input_tokens || 0;
+
+      if (inputTokens > 0 || cacheReadTokens > 0) {
+        return {
+          inputTokens,
+          outputTokens,
+          cacheCreationTokens: 0,
           cacheReadTokens,
         };
       }
@@ -95,21 +120,27 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[]): {
  *
  * @param messages - 会话消息列表
  * @param model - 当前使用的模型名称
+ * @param engine - 引擎类型（claude/codex/gemini）
  * @returns 上下文窗口使用情况
  *
  * @example
- * const { percentage, level, formattedPercentage } = useContextWindowUsage(messages, 'sonnet');
+ * const { percentage, level, formattedPercentage } = useContextWindowUsage(messages, 'sonnet', 'claude');
  * // percentage: 42.5
  * // level: 'low'
  * // formattedPercentage: '42.5%'
+ *
+ * @example
+ * // Codex 引擎
+ * const { percentage, level } = useContextWindowUsage(messages, 'codex-mini', 'codex');
  */
 export function useContextWindowUsage(
   messages: ClaudeStreamMessage[],
-  model?: string
+  model?: string,
+  engine?: string
 ): UseContextWindowUsageResult {
   return useMemo(() => {
-    // 获取上下文窗口大小
-    const contextWindowSize = getContextWindowSize(model);
+    // 获取上下文窗口大小（根据引擎和模型）
+    const contextWindowSize = getContextWindowSize(model, engine);
 
     // 默认返回值
     const defaultResult: UseContextWindowUsageResult = {
@@ -133,14 +164,14 @@ export function useContextWindowUsage(
       return defaultResult;
     }
 
-    // 从最后一条消息中提取 current_usage 数据
-    const currentUsage = extractCurrentUsage(messages);
+    // 从最后一条消息中提取 current_usage 数据（支持多引擎）
+    const currentUsage = extractCurrentUsage(messages, engine);
 
     if (!currentUsage) {
       return defaultResult;
     }
 
-    // 根据 Claude Code 官方公式计算当前使用量
+    // 根据官方公式计算当前使用量
     // CURRENT_TOKENS = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
     // 注意：不包括 output_tokens，因为输出不占用上下文窗口（它是生成的）
     const currentTokens =
@@ -175,7 +206,7 @@ export function useContextWindowUsage(
       formattedPercentage,
       formattedTokens,
     };
-  }, [messages, model]);
+  }, [messages, model, engine]);
 }
 
 /**

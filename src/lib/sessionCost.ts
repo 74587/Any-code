@@ -35,6 +35,22 @@ interface MutableBillingEvent extends BillingEvent {
 }
 
 const MODEL_FALLBACK = 'claude-sonnet-4.5';
+const CODEX_MODEL_FALLBACK = 'codex-mini';
+
+/**
+ * 检测消息的引擎类型
+ */
+function getEngineType(message: ClaudeStreamMessage): string {
+  // 检查消息上的 engine 字段
+  const engine = (message as any).engine;
+  if (engine) return engine;
+
+  // 检查 codexMetadata 字段（Codex 特有）
+  if ((message as any).codexMetadata) return 'codex';
+
+  // 默认为 Claude
+  return 'claude';
+}
 
 export function aggregateSessionCost(messages: ClaudeStreamMessage[]): SessionCostAggregation {
   const eventMap = new Map<string, MutableBillingEvent>();
@@ -53,8 +69,9 @@ export function aggregateSessionCost(messages: ClaudeStreamMessage[]): SessionCo
 
     const key = getBillingKey(message, index);
     const { timestamp, timestampMs } = extractTimestamp(message);
-    const model = getModelName(message);
-    const cost = calculateMessageCost(tokens, model);
+    const engine = getEngineType(message);
+    const model = getModelName(message, engine);
+    const cost = calculateMessageCost(tokens, model, engine);
 
     const existing = eventMap.get(key);
     if (
@@ -184,10 +201,11 @@ function extractTimestamp(message: ClaudeStreamMessage): { timestamp?: string; t
   return {};
 }
 
-function getModelName(message: ClaudeStreamMessage): string {
+function getModelName(message: ClaudeStreamMessage, engine?: string): string {
   const candidates = [
     (message as any).model,
     (message as any)?.message?.model,
+    (message as any)?.codexMetadata?.model, // Codex 可能在 metadata 中存储模型
   ];
 
   for (const candidate of candidates) {
@@ -196,7 +214,8 @@ function getModelName(message: ClaudeStreamMessage): string {
     }
   }
 
-  return MODEL_FALLBACK;
+  // 根据引擎返回对应的默认模型
+  return engine === 'codex' ? CODEX_MODEL_FALLBACK : MODEL_FALLBACK;
 }
 
 

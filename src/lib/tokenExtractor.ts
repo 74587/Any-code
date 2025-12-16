@@ -77,6 +77,7 @@ export interface RawTokenUsage {
   // 缓存读取token的各种命名方式
   cache_read_tokens?: number;
   cache_read_input_tokens?: number; // 发现于ConversationMetrics
+  cached_input_tokens?: number;     // Codex API 格式
 
   // 总token数量的不同命名方式
   total_tokens?: number;
@@ -168,9 +169,11 @@ export function normalizeRawUsage(rawUsage: RawTokenUsage | null | undefined): S
   }
 
   // 智能映射缓存读取token（处理所有发现的命名变体）
+  // 包括 Codex API 的 cached_input_tokens 格式
   const cache_read_tokens =
     rawUsage.cache_read_tokens ??
-    rawUsage.cache_read_input_tokens ?? 0;
+    rawUsage.cache_read_input_tokens ??
+    rawUsage.cached_input_tokens ?? 0;  // Codex 格式
 
   // 计算总token数量（优先使用记录值，否则计算）
   const total_tokens = rawUsage.total_tokens ?? rawUsage.tokens ??
