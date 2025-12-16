@@ -196,6 +196,13 @@ export const Settings: React.FC<SettingsProps> = ({
       setError(null);
       setToast(null);
 
+      // 🔥 修复：保存前重新读取最新的 settings.json 以获取当前代理商配置
+      // 这样可以避免用户切换代理商后，保存设置时覆盖刚切换的代理商配置
+      const latestSettings = await api.getClaudeSettings();
+      const latestAnthropicVars = Object.fromEntries(
+        Object.entries(latestSettings?.env || {}).filter(([key]) => key.startsWith('ANTHROPIC_'))
+      );
+
       // Build the settings object
       const updatedSettings: ClaudeSettings = {
         ...settings,
@@ -204,10 +211,8 @@ export const Settings: React.FC<SettingsProps> = ({
           deny: denyRules.map(rule => rule.value).filter(v => v.trim()),
         },
         env: {
-          // 只保留代理商配置的 ANTHROPIC_* 变量（这些变量由代理商设置页面管理）
-          ...Object.fromEntries(
-            Object.entries(settings?.env || {}).filter(([key]) => key.startsWith('ANTHROPIC_'))
-          ),
+          // 使用最新读取的 ANTHROPIC_* 变量（这些变量由代理商设置页面管理）
+          ...latestAnthropicVars,
           // UI 中配置的环境变量完全由用户管理（支持删除）
           ...envVars
             .filter(envVar => envVar.enabled) // 只保存启用的环境变量
