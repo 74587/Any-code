@@ -12,12 +12,13 @@ export const useTranslation = () => {
   };
 
   const getAvailableLanguages = () => {
-    return ['zh', 'en'];
+    return ['zh', 'zh-TW', 'en'];
   };
 
   const getLanguageLabel = (lng: string) => {
     const labels: Record<string, string> = {
       zh: '简体中文',
+      'zh-TW': '繁體中文',
       en: 'English'
     };
     return labels[lng] || lng;
