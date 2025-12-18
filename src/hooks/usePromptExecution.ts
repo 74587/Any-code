@@ -1273,27 +1273,51 @@ export function usePromptExecution(config: UsePromptExecutionConfig): UsePromptE
         // 5️⃣ Add User Message to UI
         // ========================================================================
 
-        const userMessage: ClaudeStreamMessage = {
-          type: "user",
-          message: {
-            content: [
-              {
-                type: "text",
-                text: prompt // Always show original user input
-              }
-            ]
-          },
-          sentAt: new Date().toISOString(),
-          ...(executionEngine === 'codex' ? { engine: 'codex' as const } : {}),
-          ...(executionEngine === 'gemini' ? { engine: 'gemini' as const } : {}),
-          // Add translation metadata for debugging/info
-          translationMeta: userInputTranslation ? {
-            wasTranslated: userInputTranslation.wasTranslated,
-            detectedLanguage: userInputTranslation.detectedLanguage,
-            translatedText: userInputTranslation.translatedText
-          } : undefined
-        };
-        setMessages(prev => [...prev, userMessage]);
+        // 🆕 检测斜杠命令 - 斜杠命令显示为"执行命令"系统消息，而不是用户消息
+        const isSlashCmd = isSlashCommand(prompt);
+
+        if (isSlashCmd) {
+          // 斜杠命令显示为 command-meta 系统消息
+          const commandMessage: ClaudeStreamMessage = {
+            type: "system",
+            subtype: "command-meta",
+            message: {
+              content: [
+                {
+                  type: "text",
+                  text: `<command-name>${prompt.trim()}</command-name>`
+                }
+              ]
+            },
+            timestamp: new Date().toISOString(),
+            ...(executionEngine === 'codex' ? { engine: 'codex' as const } : {}),
+            ...(executionEngine === 'gemini' ? { engine: 'gemini' as const } : {})
+          };
+          setMessages(prev => [...prev, commandMessage]);
+        } else {
+          // 普通用户消息
+          const userMessage: ClaudeStreamMessage = {
+            type: "user",
+            message: {
+              content: [
+                {
+                  type: "text",
+                  text: prompt // Always show original user input
+                }
+              ]
+            },
+            sentAt: new Date().toISOString(),
+            ...(executionEngine === 'codex' ? { engine: 'codex' as const } : {}),
+            ...(executionEngine === 'gemini' ? { engine: 'gemini' as const } : {}),
+            // Add translation metadata for debugging/info
+            translationMeta: userInputTranslation ? {
+              wasTranslated: userInputTranslation.wasTranslated,
+              detectedLanguage: userInputTranslation.detectedLanguage,
+              translatedText: userInputTranslation.translatedText
+            } : undefined
+          };
+          setMessages(prev => [...prev, userMessage]);
+        }
       }
 
       // ========================================================================
