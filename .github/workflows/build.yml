@@ -174,15 +174,9 @@ jobs:
             echo "Renamed: $X64_SIG -> $X64_DIR/any-code_${VERSION}_x64.app.tar.gz.sig"
           fi
 
-          # Also rename DMG files and other files with spaces
-          find artifacts -name "* *" -type f | while read file; do
-            newname=$(echo "$file" | sed 's/ /_/g')
-            mv "$file" "$newname"
-            echo "Renamed: $file -> $newname"
-          done
-
-          echo "All files in artifacts:"
-          find artifacts -type f
+          echo "macOS updater files renamed successfully"
+          echo "Signature files:"
+          find artifacts -name "*.sig" -type f
 
       - name: Generate latest.json for updater
         run: |
