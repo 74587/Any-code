@@ -381,10 +381,17 @@ const ClaudeCodeSessionInner: React.FC<ClaudeCodeSessionProps> = ({
 
   // 🆕 包装 handleSendPrompt，发送消息时自动滚动到底部
   // 解决问题：当用户滚动查看历史消息后发送新消息，页面不会自动滚动到底部
+  // 🔧 修复：消息数量过多时使用虚拟列表的 scrollToIndex 确保滚动到真正的底部
   const handleSendPromptWithScroll = useCallback((prompt: string, model: ModelType, maxThinkingTokens?: number) => {
     // 重置滚动状态，确保发送消息后自动滚动到底部
     setUserScrolled(false);
     setShouldAutoScroll(true);
+
+    // 使用虚拟列表的 scrollToBottom 方法，解决消息过多时 scrollHeight 估算不准的问题
+    // 延迟执行，等待消息添加到列表后再滚动
+    setTimeout(() => {
+      sessionMessagesRef.current?.scrollToBottom();
+    }, 50);
 
     handleSendPrompt(prompt, model, maxThinkingTokens);
   }, [handleSendPrompt, setUserScrolled, setShouldAutoScroll]);
@@ -987,12 +994,8 @@ const ClaudeCodeSessionInner: React.FC<ClaudeCodeSessionProps> = ({
                           onClick={() => {
                             setUserScrolled(false);
                             setShouldAutoScroll(true);
-                            if (parentRef.current) {
-                              parentRef.current.scrollTo({
-                                top: parentRef.current.scrollHeight,
-                                behavior: 'smooth'
-                              });
-                            }
+                            // 使用虚拟列表的 scrollToBottom，解决消息过多时滚动不到底的问题
+                            sessionMessagesRef.current?.scrollToBottom();
                           }}
                           title={t('claudeSession.newMessage')}
                         >
@@ -1034,12 +1037,8 @@ const ClaudeCodeSessionInner: React.FC<ClaudeCodeSessionProps> = ({
                         onClick={() => {
                           setUserScrolled(false);
                           setShouldAutoScroll(true);
-                          if (parentRef.current) {
-                            parentRef.current.scrollTo({
-                              top: parentRef.current.scrollHeight,
-                              behavior: 'smooth'
-                            });
-                          }
+                          // 使用虚拟列表的 scrollToBottom，解决消息过多时滚动不到底的问题
+                          sessionMessagesRef.current?.scrollToBottom();
                         }}
                         className="px-1.5 py-1.5 hover:bg-accent/80 rounded-none h-auto min-h-0"
                         title={t('claudeSession.scrollToBottom')}

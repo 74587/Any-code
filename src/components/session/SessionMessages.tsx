@@ -71,6 +71,8 @@ const MeasurableItem = ({ virtualItem, measureElement, isStreaming, children, ..
 
 export interface SessionMessagesRef {
   scrollToPrompt: (promptIndex: number) => void;
+  /** 滚动到底部（使用虚拟列表的 scrollToIndex，解决消息过多时滚动不到底的问题） */
+  scrollToBottom: () => void;
 }
 
 /**
@@ -165,6 +167,27 @@ export const SessionMessages = forwardRef<SessionMessagesRef, SessionMessagesPro
   });
 
   useImperativeHandle(ref, () => ({
+    scrollToBottom: () => {
+      if (messageGroups.length === 0) return;
+
+      // 使用虚拟列表的 scrollToIndex 滚动到最后一项
+      // 这比使用 scrollHeight 更可靠，因为虚拟列表的高度是估算的
+      rowVirtualizer.scrollToIndex(messageGroups.length - 1, {
+        align: 'end',
+        behavior: 'smooth',
+      });
+
+      // 额外的保障：等待虚拟列表渲染后，再次确保滚动到底部
+      // 因为 scrollToIndex 后虚拟列表可能会重新测量高度
+      setTimeout(() => {
+        if (parentRef.current) {
+          parentRef.current.scrollTo({
+            top: parentRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 150);
+    },
     scrollToPrompt: (promptIndex: number) => {
       // 找到 promptIndex 对应的消息在 messageGroups 中的索引
       let currentPromptIndex = 0;
