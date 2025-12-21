@@ -65,6 +65,10 @@ interface ClaudeCodeSessionProps {
    */
   onProjectPathChange?: (newPath: string) => void;
   /**
+   * 🆕 Callback when execution engine changes (for updating tab icon)
+   */
+  onEngineChange?: (engine: 'claude' | 'codex' | 'gemini') => void;
+  /**
    * Whether this session is currently active (for event listener management)
    */
   isActive?: boolean;
@@ -82,6 +86,7 @@ const ClaudeCodeSessionInner: React.FC<ClaudeCodeSessionProps> = ({
   className,
   onStreamingChange,
   onProjectPathChange,
+  onEngineChange,
   isActive = true, // 默认为活跃状态，保持向后兼容
 }) => {
   const { t } = useTranslation();
@@ -176,6 +181,13 @@ const ClaudeCodeSessionInner: React.FC<ClaudeCodeSessionProps> = ({
       };
     });
   }, [claudeSettings?.hideWarmupMessages, setFilterConfig]);
+
+  // 🆕 Notify parent when execution engine changes (for tab icon update)
+  useEffect(() => {
+    if (onEngineChange) {
+      onEngineChange(executionEngineConfig.engine);
+    }
+  }, [executionEngineConfig.engine, onEngineChange]);
 
   const displayableMessages = useDisplayableMessages(messages, {
     hideWarmupMessages: filterConfig.hideWarmupMessages

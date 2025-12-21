@@ -48,6 +48,7 @@ interface TabContextValue {
   updateTabState: (tabId: string, state: Tab['state'], errorMessage?: string) => void;
   updateTabChanges: (tabId: string, hasChanges: boolean) => void;
   updateTabTitle: (tabId: string, title: string) => void;
+  updateTabEngine: (tabId: string, engine: 'claude' | 'codex' | 'gemini') => void;
   getTabById: (tabId: string) => TabSession | undefined;
   getActiveTab: () => TabSession | undefined;
   openSessionInBackground: (session: Session) => { tabId: string; isNew: boolean };
@@ -306,6 +307,20 @@ export const TabProvider: React.FC<TabProviderProps> = ({ children }) => {
     );
   }, []);
 
+  // 🆕 Update tab engine - 更新标签页的执行引擎
+  const updateTabEngine = useCallback((tabId: string, engine: 'claude' | 'codex' | 'gemini') => {
+    setTabs(prev =>
+      prev.map(tab => {
+        if (tab.id !== tabId) return tab;
+        // 创建或更新 session 对象的 engine 字段
+        const updatedSession = tab.session
+          ? { ...tab.session, engine }
+          : { id: '', project_path: tab.projectPath || '', project_id: '', created_at: Date.now(), engine } as Session;
+        return { ...tab, session: updatedSession };
+      })
+    );
+  }, []);
+
   // Get tab by ID
   const getTabById = useCallback((tabId: string): TabSession | undefined => {
     const tab = tabs.find(t => t.id === tabId);
@@ -542,6 +557,7 @@ export const TabProvider: React.FC<TabProviderProps> = ({ children }) => {
     updateTabState,
     updateTabChanges,
     updateTabTitle,
+    updateTabEngine,
     getTabById,
     getActiveTab,
     openSessionInBackground,
@@ -590,7 +606,7 @@ export const useActiveTab = (): TabSession | undefined => {
  * useTabSession - 获取特定标签页的会话管理钩子
  */
 export const useTabSession = (tabId: string) => {
-  const { getTabById, updateTabChanges, updateTabStreamingStatus, updateTabTitle, registerTabCleanup } = useTabs();
+  const { getTabById, updateTabChanges, updateTabStreamingStatus, updateTabTitle, updateTabEngine, registerTabCleanup } = useTabs();
 
   const tab = getTabById(tabId);
 
@@ -610,6 +626,11 @@ export const useTabSession = (tabId: string) => {
     updateTabStreamingStatus(tabId, isStreaming, sessionId);
   }, [tabId, updateTabStreamingStatus]);
 
+  // 🆕 Update engine - 更新执行引擎
+  const updateEngine = useCallback((engine: 'claude' | 'codex' | 'gemini') => {
+    updateTabEngine(tabId, engine);
+  }, [tabId, updateTabEngine]);
+
   // 🔧 NEW: Register cleanup callback
   const setCleanup = useCallback((cleanup: () => Promise<void> | void) => {
     registerTabCleanup(tabId, cleanup);
@@ -621,6 +642,7 @@ export const useTabSession = (tabId: string) => {
     markAsUnchanged,
     updateTitle,
     updateStreaming,
+    updateEngine,
     setCleanup,
   };
 };

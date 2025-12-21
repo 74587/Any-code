@@ -24,7 +24,7 @@ const TabSessionWrapperComponent: React.FC<TabSessionWrapperProps> = ({
   isActive,
 }) => {
   // ✅ FIXED: Removed unused 'tab' variable to fix TS6133
-  const { updateStreaming, setCleanup, updateTitle } = useTabSession(tabId);
+  const { updateStreaming, setCleanup, updateTitle, updateEngine } = useTabSession(tabId);
   const sessionRef = useRef<{ hasChanges: boolean; sessionId: string | null }>({
     hasChanges: false,
     sessionId: null,
@@ -71,6 +71,11 @@ const TabSessionWrapperComponent: React.FC<TabSessionWrapperProps> = ({
     }
   }, [extractProjectName, updateTitle]);
 
+  // 🆕 Handle engine change - 更新标签页显示的引擎类型
+  const handleEngineChange = useCallback((engine: 'claude' | 'codex' | 'gemini') => {
+    updateEngine(engine);
+  }, [updateEngine]);
+
   // 包装 onStreamingChange 以更新标签页状态
   // 🔧 性能修复：使用 useCallback 避免无限渲染循环（从 1236 renders/s 降至 1 render/s）
   const handleStreamingChange = useCallback((isStreaming: boolean, sessionId: string | null) => {
@@ -103,6 +108,7 @@ const TabSessionWrapperComponent: React.FC<TabSessionWrapperProps> = ({
         initialProjectPath={initialProjectPath}
         onStreamingChange={handleStreamingChange}
         onProjectPathChange={handleProjectPathChange}
+        onEngineChange={handleEngineChange}
         isActive={isActive}
       />
     </div>
