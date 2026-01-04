@@ -37,10 +37,36 @@ pub async fn get_claude_settings() -> Result<ClaudeSettings, String> {
     let content = fs::read_to_string(&settings_path)
         .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-    let data: serde_json::Value = serde_json::from_str(&content)
+    let data: serde_json::Value = parse_settings_json(&content)
         .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
 
     Ok(ClaudeSettings { data })
+}
+
+/// Parse settings.json with recovery for common formatting mistakes (e.g. trailing commas)
+fn parse_settings_json(content: &str) -> Result<serde_json::Value, serde_json::Error> {
+    match serde_json::from_str::<serde_json::Value>(content) {
+        Ok(value) => Ok(value),
+        Err(primary_err) => {
+            log::warn!(
+                "Failed to parse settings.json, attempting recovery: {}",
+                primary_err
+            );
+
+            // Remove trailing commas before } or ]
+            let trailing_comma_regex = regex::Regex::new(r",\s*(\}|])").unwrap();
+            let sanitized = trailing_comma_regex.replace_all(content, "$1");
+
+            serde_json::from_str::<serde_json::Value>(&sanitized).map_err(|fallback_err| {
+                log::error!(
+                    "Settings recovery failed: original error: {}, fallback error: {}",
+                    primary_err,
+                    fallback_err
+                );
+                fallback_err
+            })
+        }
+    }
 }
 
 /// Opens a new Claude Code session by executing the claude command
