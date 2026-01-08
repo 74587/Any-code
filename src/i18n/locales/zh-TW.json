@@ -725,6 +725,7 @@
     "createdAt": "建立時間:",
     "newSession": "新建對話",
     "newSessionWindow": "新建對話（獨立視窗）",
+    "closeTab": "關閉分頁",
     "closeAllTabs": "關閉所有分頁",
     "closeOtherTabs": "關閉其他分頁",
     "noActiveSessions": "暫無活躍對話",

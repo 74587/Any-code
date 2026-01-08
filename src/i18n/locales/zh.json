@@ -725,6 +725,7 @@
     "createdAt": "创建时间:",
     "newSession": "新建会话",
     "newSessionWindow": "新建会话（独立窗口）",
+    "closeTab": "关闭标签页",
     "closeAllTabs": "关闭所有标签页",
     "closeOtherTabs": "关闭其他标签页",
     "noActiveSessions": "暂无活跃会话",

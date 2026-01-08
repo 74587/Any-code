@@ -725,6 +725,7 @@
     "createdAt": "Created at:",
     "newSession": "New Session",
     "newSessionWindow": "New Session (Separate Window)",
+    "closeTab": "Close Tab",
     "closeAllTabs": "Close All Tabs",
     "closeOtherTabs": "Close Other Tabs",
     "noActiveSessions": "No Active Sessions",
