@@ -143,8 +143,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Logo 区域 (Removed) */}
       
-      {/* 主导航区域 */}
-      <div className={cn("flex-1 flex flex-col w-full", isExpanded ? "space-y-1" : "items-center space-y-2")}>
+      {/* 主导航区域 - overflow-y-auto + min-h-0 确保窗口过小时底部按钮仍可见 */}
+      <div className={cn("flex-1 flex flex-col w-full min-h-0 overflow-y-auto", isExpanded ? "space-y-1" : "items-center space-y-2")}>
         {mainNavItems.map((item) => (
           <NavButton key={item.view} item={item} />
         ))}

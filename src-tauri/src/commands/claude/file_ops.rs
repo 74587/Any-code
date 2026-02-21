@@ -169,7 +169,8 @@ fn search_files_recursive(
     depth: usize,
 ) -> Result<(), String> {
     // Limit recursion depth to prevent excessive searching
-    if depth > 5 || results.len() >= 50 {
+    // Depth 10 supports deep directory structures like Java (src/main/java/com/example/app/)
+    if depth > 10 || results.len() >= 50 {
         return Ok(());
     }
 
