@@ -321,7 +321,25 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
           ...(codexStats?.by_project || []).map(p => ({ ...p, engine: 'codex' as EngineType })),
           ...(geminiStats?.by_project || []).map(p => ({ ...p, engine: 'gemini' as EngineType })),
         ].sort((a, b) => b.total_cost - a.total_cost),
-        by_date: stats?.by_date || [],
+        by_date: (() => {
+          // Merge by_date from all engines, grouping by date
+          const merged = new Map<string, { date: string; total_cost: number; total_tokens: number; models_used: string[] }>();
+          const addEntries = (entries: any[] | undefined) => {
+            for (const d of (entries || [])) {
+              const existing = merged.get(d.date);
+              if (existing) {
+                existing.total_cost += d.total_cost;
+                existing.total_tokens += d.total_tokens;
+              } else {
+                merged.set(d.date, { date: d.date, total_cost: d.total_cost, total_tokens: d.total_tokens, models_used: d.models_used || [] });
+              }
+            }
+          };
+          addEntries(stats?.by_date);
+          addEntries(codexStats?.by_date);
+          addEntries(geminiStats?.by_date);
+          return Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date));
+        })(),
       };
     }
     if (selectedEngine === 'claude') return stats;

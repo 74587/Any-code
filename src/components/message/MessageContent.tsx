@@ -226,7 +226,7 @@ const MessageContentComponent: React.FC<MessageContentProps> = ({
   return (
     <div
       className={cn(
-        "prose prose-sm dark:prose-invert max-w-none",
+        "prose prose-sm dark:prose-invert max-w-none break-words",
         "prose-headings:font-semibold prose-headings:tracking-tight",
         "prose-p:leading-relaxed prose-p:text-foreground/90",
         "prose-a:text-primary prose-a:no-underline prose-a:border-b prose-a:border-primary/30 hover:prose-a:border-primary prose-a:transition-colors",
@@ -237,6 +237,7 @@ const MessageContentComponent: React.FC<MessageContentProps> = ({
         "prose-hr:border-border/50 prose-hr:my-8",
         className
       )}
+      style={{ overflowWrap: 'anywhere' }}
       onDoubleClick={handleDoubleClick}
       title={isTyping ? "双击跳过打字效果" : undefined}
     >

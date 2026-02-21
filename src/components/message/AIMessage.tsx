@@ -186,7 +186,7 @@ export const AIMessage: React.FC<AIMessageProps> = ({
             {/* Main Content */}
             <div className="space-y-3">
               {text && (
-                <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed text-[15px]">
+                <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed text-[15px] break-words" style={{ overflowWrap: 'anywhere' }}>
                   <MessageContent
                     content={text}
                     isStreaming={enableTypewriter && !hasTools && !hasThinking}
