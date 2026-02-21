@@ -72,6 +72,9 @@ export type { TodoWidgetProps } from './task-management/TodoWidget';
 export { UpdatePlanWidget } from './task-management/UpdatePlanWidget';
 export type { UpdatePlanWidgetProps } from './task-management/UpdatePlanWidget';
 
+export { TaskCreateWidget, TaskUpdateWidget, TaskListWidget, TaskGetWidget } from './task-management/TaskManagementWidgets';
+export type { TaskCreateWidgetProps, TaskUpdateWidgetProps, TaskListWidgetProps, TaskGetWidgetProps } from './task-management/TaskManagementWidgets';
+
 // ==================== 子代理类 ====================
 export { TaskWidget } from './agent/TaskWidget';
 export type { TaskWidgetProps } from './agent/TaskWidget';

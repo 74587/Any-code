@@ -32,6 +32,10 @@ import {
   // 任务管理类
   TodoWidget,
   UpdatePlanWidget,
+  TaskCreateWidget,
+  TaskUpdateWidget,
+  TaskListWidget,
+  TaskGetWidget,
 
   // 子代理类
   TaskWidget,
@@ -289,6 +293,55 @@ export function initializeToolRegistry(): void {
         };
       }),
       description: 'Codex 计划更新工具',
+    },
+
+    // TaskCreate - 创建任务（Claude Code 任务管理）
+    {
+      name: 'taskcreate',
+      pattern: /^task[-_]?create$/i,
+      render: createToolAdapter(TaskCreateWidget, (props) => ({
+        subject: props.input?.subject,
+        description: props.input?.description,
+        activeForm: props.input?.activeForm,
+        result: props.result,
+      })),
+      description: 'Claude Code 任务创建工具',
+    },
+
+    // TaskUpdate - 更新任务（Claude Code 任务管理）
+    {
+      name: 'taskupdate',
+      pattern: /^task[-_]?update$/i,
+      render: createToolAdapter(TaskUpdateWidget, (props) => ({
+        taskId: props.input?.taskId,
+        status: props.input?.status,
+        subject: props.input?.subject,
+        description: props.input?.description,
+        activeForm: props.input?.activeForm,
+        result: props.result,
+      })),
+      description: 'Claude Code 任务更新工具',
+    },
+
+    // TaskList - 列出任务（Claude Code 任务管理）
+    {
+      name: 'tasklist',
+      pattern: /^task[-_]?list$/i,
+      render: createToolAdapter(TaskListWidget, (props) => ({
+        result: props.result,
+      })),
+      description: 'Claude Code 任务列表工具',
+    },
+
+    // TaskGet - 获取任务详情（Claude Code 任务管理）
+    {
+      name: 'taskget',
+      pattern: /^task[-_]?get$/i,
+      render: createToolAdapter(TaskGetWidget, (props) => ({
+        taskId: props.input?.taskId,
+        result: props.result,
+      })),
+      description: 'Claude Code 任务详情工具',
     },
 
     // LS - 列出目录
