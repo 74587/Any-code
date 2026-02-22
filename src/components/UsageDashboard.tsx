@@ -975,11 +975,17 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                           {/* Chart container - SVG bar chart */}
                           <div className="relative border-l border-b border-border" style={{ height: '256px' }}>
                             <svg width="100%" height="256" className="ml-4" style={{ overflow: 'visible' }}>
+                              <defs>
+                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" style={{ stopColor: 'var(--color-primary)', stopOpacity: 1 }} />
+                                  <stop offset="100%" style={{ stopColor: 'var(--color-primary)', stopOpacity: 0.6 }} />
+                                </linearGradient>
+                              </defs>
                               {timelineChartData.bars.map((day, index) => {
                                 const barCount = timelineChartData.bars.length;
                                 const totalWidth = 100;
                                 const barWidthPercent = totalWidth / barCount;
-                                const gapPercent = barWidthPercent * 0.1;
+                                const gapPercent = barWidthPercent * 0.4;
                                 const actualBarWidth = barWidthPercent - gapPercent;
                                 const x = `${index * barWidthPercent + gapPercent / 2}%`;
                                 const barHeight = Math.max(day.total_cost > 0 ? 2 : 0, Math.round(256 * day.heightPercent / 100));
@@ -991,23 +997,22 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                                 });
 
                                 return (
-                                  <g key={day.date.toISOString()}>
+                                  <g key={day.date.toISOString()} className="group">
                                     <rect
                                       x={x}
                                       y={y}
                                       width={`${actualBarWidth}%`}
                                       height={barHeight}
-                                      rx="3"
-                                      className="fill-primary hover:opacity-80 transition-opacity cursor-pointer"
+                                      rx="4"
+                                      fill="url(#barGradient)"
+                                      className="hover:opacity-80 transition-opacity cursor-pointer"
                                     />
                                     <title>{`${formattedDate}\n${formatCurrency(day.total_cost)}\n${formatTokens(day.total_tokens)} tokens`}</title>
-                                    {/* X-axis label */}
                                     <text
                                       x={`${index * barWidthPercent + barWidthPercent / 2}%`}
                                       y={256 + 16}
                                       textAnchor="middle"
-                                      className="fill-muted-foreground"
-                                      style={{ fontSize: '11px' }}
+                                      style={{ fontSize: '11px', fill: 'var(--color-muted-foreground)' }}
                                     >
                                       {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </text>
