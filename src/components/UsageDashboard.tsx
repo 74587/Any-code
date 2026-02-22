@@ -973,17 +973,18 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                           </div>
                           
                           {/* Chart container */}
-                          <div className="relative h-64 border-l border-b border-border pl-4">
-                            <div className="absolute inset-0 pl-4 flex items-end space-x-1">
+                          <div className="relative border-l border-b border-border" style={{ height: '256px' }}>
+                            <div className="flex gap-0.5 h-full ml-4">
                               {timelineChartData.bars.map((day) => {
                                 const formattedDate = day.date.toLocaleDateString('en-US', {
                                   weekday: 'short',
                                   month: 'short',
                                   day: 'numeric'
                                 });
+                                const barHeight = Math.round(256 * day.heightPercent / 100);
 
                                 return (
-                                  <div key={day.date.toISOString()} className="flex-1 h-full relative group">
+                                  <div key={day.date.toISOString()} className="flex-1 flex flex-col justify-end relative group">
                                     {/* Tooltip */}
                                     <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
                                       <div className="bg-background border border-border rounded-lg shadow-lg p-3 whitespace-nowrap">
@@ -1003,10 +1004,10 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                                       </div>
                                     </div>
 
-                                    {/* Bar - absolute positioned from bottom */}
+                                    {/* Bar - pixel height, flex-col justify-end pushes to bottom */}
                                     <div
-                                      className="absolute bottom-0 left-0 right-0 bg-primary hover:opacity-80 transition-opacity rounded-t cursor-pointer"
-                                      style={{ height: `${day.heightPercent}%`, minHeight: day.total_cost > 0 ? '2px' : '0px' }}
+                                      className="w-full bg-primary hover:opacity-80 transition-opacity rounded-t cursor-pointer"
+                                      style={{ height: `${barHeight}px`, minHeight: day.total_cost > 0 ? '2px' : '0px' }}
                                     />
 
                                     {/* X-axis label */}
