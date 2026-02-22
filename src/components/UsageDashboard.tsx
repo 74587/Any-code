@@ -972,54 +972,49 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                             <span>{formatCurrency(0)}</span>
                           </div>
                           
-                          {/* Chart container */}
+                          {/* Chart container - SVG bar chart */}
                           <div className="relative border-l border-b border-border" style={{ height: '256px' }}>
-                            <div className="flex gap-0.5 h-full ml-4">
-                              {timelineChartData.bars.map((day) => {
+                            <svg width="100%" height="256" className="ml-4" style={{ overflow: 'visible' }}>
+                              {timelineChartData.bars.map((day, index) => {
+                                const barCount = timelineChartData.bars.length;
+                                const totalWidth = 100;
+                                const barWidthPercent = totalWidth / barCount;
+                                const gapPercent = barWidthPercent * 0.1;
+                                const actualBarWidth = barWidthPercent - gapPercent;
+                                const x = `${index * barWidthPercent + gapPercent / 2}%`;
+                                const barHeight = Math.max(day.total_cost > 0 ? 2 : 0, Math.round(256 * day.heightPercent / 100));
+                                const y = 256 - barHeight;
                                 const formattedDate = day.date.toLocaleDateString('en-US', {
                                   weekday: 'short',
                                   month: 'short',
                                   day: 'numeric'
                                 });
-                                const barHeight = Math.round(256 * day.heightPercent / 100);
 
                                 return (
-                                  <div key={day.date.toISOString()} className="flex-1 flex flex-col justify-end relative group">
-                                    {/* Tooltip */}
-                                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                                      <div className="bg-background border border-border rounded-lg shadow-lg p-3 whitespace-nowrap">
-                                        <p className="text-sm font-semibold">{formattedDate}</p>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                          {t('usageDashboard.cost')}: {formatCurrency(day.total_cost)}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {formatTokens(day.total_tokens)} {t('usageDashboard.tokens')}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {day.models_used.length} {day.models_used.length !== 1 ? t('usageDashboard.models') : t('usageDashboard.model')}
-                                        </p>
-                                      </div>
-                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                                        <div className="border-4 border-transparent border-t-border"></div>
-                                      </div>
-                                    </div>
-
-                                    {/* Bar - pixel height, flex-col justify-end pushes to bottom */}
-                                    <div
-                                      className="w-full bg-primary hover:opacity-80 transition-opacity rounded-t cursor-pointer"
-                                      style={{ height: `${barHeight}px`, minHeight: day.total_cost > 0 ? '2px' : '0px' }}
+                                  <g key={day.date.toISOString()}>
+                                    <rect
+                                      x={x}
+                                      y={y}
+                                      width={`${actualBarWidth}%`}
+                                      height={barHeight}
+                                      rx="3"
+                                      className="fill-primary hover:opacity-80 transition-opacity cursor-pointer"
                                     />
-
+                                    <title>{`${formattedDate}\n${formatCurrency(day.total_cost)}\n${formatTokens(day.total_tokens)} tokens`}</title>
                                     {/* X-axis label */}
-                                    <div
-                                      className="absolute left-1/2 top-full mt-2 -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap pointer-events-none"
+                                    <text
+                                      x={`${index * barWidthPercent + barWidthPercent / 2}%`}
+                                      y={256 + 16}
+                                      textAnchor="middle"
+                                      className="fill-muted-foreground"
+                                      style={{ fontSize: '11px' }}
                                     >
                                       {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                    </div>
-                                  </div>
+                                    </text>
+                                  </g>
                                 );
                               })}
-                            </div>
+                            </svg>
                           </div>
 
                           {/* X-axis label */}
