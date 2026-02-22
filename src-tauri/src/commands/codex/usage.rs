@@ -606,7 +606,7 @@ pub async fn get_codex_usage_stats(
     by_model.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());
 
     let mut by_date: Vec<CodexDailyUsage> = daily_stats.into_values().collect();
-    by_date.sort_by(|a, b| b.date.cmp(&a.date));
+    by_date.sort_by(|a, b| a.date.cmp(&b.date));
 
     let mut by_project: Vec<CodexProjectUsage> = project_stats.into_values().collect();
     by_project.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());

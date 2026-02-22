@@ -338,7 +338,7 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
           addEntries(stats?.by_date);
           addEntries(codexStats?.by_date);
           addEntries(geminiStats?.by_date);
-          return Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date));
+          return Array.from(merged.values()).sort((a, b) => a.date.localeCompare(b.date));
         })(),
       };
     }
@@ -472,13 +472,11 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
 
     const maxCost = Math.max(...byDate.map((d: any) => d.total_cost), 0);
     const halfMaxCost = maxCost / 2;
-    const reversedData = byDate.slice().reverse();
 
     return {
       maxCost,
       halfMaxCost,
-      reversedData,
-      bars: reversedData.map((day: any) => ({
+      bars: byDate.map((day: any) => ({
         ...day,
         heightPercent: maxCost > 0 ? (day.total_cost / maxCost) * 100 : 0,
         date: new Date(day.date.replace(/-/g, '/')),
@@ -975,50 +973,52 @@ export const UsageDashboard: React.FC<UsageDashboardProps> = ({ onBack }) => {
                           </div>
                           
                           {/* Chart container */}
-                          <div className="flex items-end space-x-2 h-64 border-l border-b border-border pl-4">
-                            {timelineChartData.bars.map((day) => {
-                              const formattedDate = day.date.toLocaleDateString('en-US', {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric'
-                              });
-                              
-                              return (
-                                <div key={day.date.toISOString()} className="flex-1 h-full flex flex-col items-center justify-end group relative">
-                                  {/* Tooltip */}
-                                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                                    <div className="bg-background border border-border rounded-lg shadow-lg p-3 whitespace-nowrap">
-                                      <p className="text-sm font-semibold">{formattedDate}</p>
-                                      <p className="text-sm text-muted-foreground mt-1">
-                                        {t('usageDashboard.cost')}: {formatCurrency(day.total_cost)}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {formatTokens(day.total_tokens)} {t('usageDashboard.tokens')}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {day.models_used.length} {day.models_used.length !== 1 ? t('usageDashboard.models') : t('usageDashboard.model')}
-                                      </p>
+                          <div className="relative h-64 border-l border-b border-border pl-4">
+                            <div className="absolute inset-0 pl-4 flex items-end space-x-1">
+                              {timelineChartData.bars.map((day) => {
+                                const formattedDate = day.date.toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric'
+                                });
+
+                                return (
+                                  <div key={day.date.toISOString()} className="flex-1 h-full relative group">
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                                      <div className="bg-background border border-border rounded-lg shadow-lg p-3 whitespace-nowrap">
+                                        <p className="text-sm font-semibold">{formattedDate}</p>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          {t('usageDashboard.cost')}: {formatCurrency(day.total_cost)}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {formatTokens(day.total_tokens)} {t('usageDashboard.tokens')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {day.models_used.length} {day.models_used.length !== 1 ? t('usageDashboard.models') : t('usageDashboard.model')}
+                                        </p>
+                                      </div>
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                                        <div className="border-4 border-transparent border-t-border"></div>
+                                      </div>
                                     </div>
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                                      <div className="border-4 border-transparent border-t-border"></div>
+
+                                    {/* Bar - absolute positioned from bottom */}
+                                    <div
+                                      className="absolute bottom-0 left-0 right-0 bg-primary hover:opacity-80 transition-opacity rounded-t cursor-pointer"
+                                      style={{ height: `${day.heightPercent}%`, minHeight: day.total_cost > 0 ? '2px' : '0px' }}
+                                    />
+
+                                    {/* X-axis label */}
+                                    <div
+                                      className="absolute left-1/2 top-full mt-2 -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap pointer-events-none"
+                                    >
+                                      {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </div>
                                   </div>
-                                  
-                                  {/* Bar */}
-                                  <div 
-                                    className="w-full bg-primary hover:opacity-80 transition-opacity rounded-t cursor-pointer"
-                                    style={{ height: `${day.heightPercent}%` }}
-                                  />
-                                  
-                                  {/* X-axis label – absolutely positioned below the bar */}
-                                  <div
-                                    className="absolute left-1/2 top-full mt-2 -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap pointer-events-none"
-                                  >
-                                    {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
 
                           {/* X-axis label */}

@@ -565,7 +565,7 @@ pub fn get_usage_stats(days: Option<u32>) -> Result<UsageStats, String> {
     by_model.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());
 
     let mut by_date: Vec<DailyUsage> = daily_stats.into_values().collect();
-    by_date.sort_by(|a, b| b.date.cmp(&a.date));
+    by_date.sort_by(|a, b| a.date.cmp(&b.date));
 
     let mut by_project: Vec<ProjectUsage> = project_stats.into_values().collect();
     by_project.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());
@@ -733,6 +733,15 @@ pub fn get_usage_by_date_range(start_date: String, end_date: String) -> Result<U
 
     let unique_sessions: HashSet<_> = filtered_entries.iter().map(|e| &e.session_id).collect();
 
+    let mut by_model: Vec<ModelUsage> = model_stats.into_values().collect();
+    by_model.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());
+
+    let mut by_date: Vec<DailyUsage> = daily_stats.into_values().collect();
+    by_date.sort_by(|a, b| a.date.cmp(&b.date));
+
+    let mut by_project: Vec<ProjectUsage> = project_stats.into_values().collect();
+    by_project.sort_by(|a, b| b.total_cost.partial_cmp(&a.total_cost).unwrap());
+
     Ok(UsageStats {
         total_cost,
         total_tokens: total_input_tokens
@@ -744,9 +753,9 @@ pub fn get_usage_by_date_range(start_date: String, end_date: String) -> Result<U
         total_cache_creation_tokens,
         total_cache_read_tokens,
         total_sessions: unique_sessions.len() as u64,
-        by_model: model_stats.into_values().collect(),
-        by_date: daily_stats.into_values().collect(),
-        by_project: project_stats.into_values().collect(),
+        by_model,
+        by_date,
+        by_project,
     })
 }
 
